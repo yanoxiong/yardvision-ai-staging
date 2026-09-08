@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>YardVision AI v7</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <button class="brand nav-btn" data-view="home">🌿 <strong>YardVision AI</strong> <span class="version">v8</span></button>
+    <nav class="nav">
+      <button class="nav-btn active" data-view="home">Home</button>
+      <button class="nav-btn" data-view="design">Design</button>
+      <button class="nav-btn" data-view="projects">My Designs</button>
+      <button class="nav-btn" data-view="pro">Pro</button>
+      <button class="nav-btn" data-view="account">Account</button><button class="nav-btn" data-view="status">Status</button>
+    </nav>
+    <div class="header-auth"><button id="authOpenBtn" class="secondary">Sign In</button><button id="headerLogoutBtn" class="secondary hidden">Sign Out</button></div>
+  </header>
+  <div class="live-build-banner">
+    🚀 STAGING BUILD: YardVision AI v8 &nbsp; • &nbsp; PORT 3018
+  </div>
+
+  <main>
+    <section id="view-home" class="view active">
+      <div class="hero">
+        <div>
+          <div class="eyebrow">PRODUCTION FOUNDATION</div>
+          <h1>Design a better yard. Save it to your account.</h1>
+          <p class="lead">v7 adds persistent image storage, email verification, password reset, plan usage limits, PostgreSQL support, and Stripe-ready subscriptions.</p>
+          <div class="row">
+            <button class="primary goto-design">Design My Yard</button>
+            <button class="secondary" id="homeDemoBtn">Use Demo Yard</button>
+          </div>
+          <div id="serverStatus" class="status-card">Checking server…</div>
+        </div>
+        <div class="hero-art">
+          <span class="hero-label left">Before</span>
+          <span class="hero-label right">After</span>
+          <div class="hero-divider"></div>
+        </div>
+      </div>
+      <div class="feature-strip">
+        <button class="feature-link" data-target="design"><strong>2</strong><span>AI variations</span><small>Open Design</small></button>
+        <button class="feature-link" data-target="design"><strong>↔</strong><span>Before / after slider</span><small>Open Design</small></button>
+        <button class="feature-link" data-target="projects"><strong>♡</strong><span>Save designs</span><small>Open My Designs</small></button>
+        <button class="feature-link" data-target="design"><strong>↓</strong><span>Download results</span><small>Generate, then download</small></button>
+      </div>
+    </section>
+
+    <section id="view-design" class="view">
+      <div class="page-head">
+        <div>
+          <div class="eyebrow">CREATE</div>
+          <h2>Design Your Yard</h2>
+          <p>Sign in, upload a photo or use the demo, then choose your style.</p>
+        </div>
+        <div class="usage-pill" id="usagePill">Sign in to see usage</div>
+      </div>
+
+      <div class="grid">
+        <div class="card controls">
+          <label>Yard Photo</label>
+          <input id="yardFile" type="file" accept="image/jpeg,image/png,image/webp" />
+          <button class="secondary full" id="designDemoBtn">Load Demo Yard</button>
+          <img id="uploadPreview" class="preview hidden" alt="Yard preview" />
+
+          <label>Style</label>
+          <div id="styleGrid" class="chip-grid">
+            <button data-style="Modern">Modern</button>
+            <button data-style="Low Maintenance">Low Maintenance</button>
+            <button data-style="Tropical">Tropical</button>
+            <button data-style="Luxury">Luxury</button>
+            <button data-style="Drought-Tolerant">Drought-Tolerant</button>
+            <button data-style="Cottage Garden">Cottage Garden</button>
+          </div>
+
+          <label>Features</label>
+          <div id="featureGrid" class="chip-grid">
+            <button>Keep existing trees</button>
+            <button>Add grass</button>
+            <button>Artificial turf</button>
+            <button>Add flowers</button>
+            <button>Add shrubs</button>
+            <button>Add patio</button>
+            <button>Add walkway</button>
+            <button>Add lighting</button>
+            <button>Add fire pit</button>
+          </div>
+
+          <label>Budget</label>
+          <div id="budgetGrid" class="chip-grid">
+            <button data-budget="Under $2,500">Under $2,500</button>
+            <button data-budget="$2,500–$5,000">$2,500–$5,000</button>
+            <button data-budget="$5,000–$10,000">$5,000–$10,000</button>
+            <button data-budget="$10,000–$25,000">$10,000–$25,000</button>
+            <button data-budget="$25,000+">$25,000+</button>
+            <button data-budget="Just give me ideas" class="selected">Just give me ideas</button>
+          </div>
+
+          <label>Notes</label>
+          <textarea id="notes" rows="4" placeholder="Keep driveway, add low-maintenance plants, improve curb appeal..."></textarea>
+
+          <button id="generateBtn" class="primary full">Create My Landscape ✨</button>
+        </div>
+
+        <div class="card results">
+          <div class="results-head">
+            <div>
+              <div class="eyebrow">RESULT</div>
+              <h2>Before / After</h2>
+            </div>
+            <div id="variationTabs" class="row small-gap"></div>
+          </div>
+
+          <div class="compare-wrap">
+            <img id="beforeImg" class="compare-img" alt="Before yard" />
+            <div id="afterClip" class="after-clip">
+              <img id="afterImg" class="compare-img" alt="After yard" />
+            </div>
+            <input id="compareRange" type="range" min="0" max="100" value="50" aria-label="Before and after comparison slider" />
+            <div id="compareLine" class="compare-line"></div>
+            <div id="compareHandle" class="compare-handle">↔</div>
+            <div id="resultEmpty" class="empty">Generate a design to compare before and after.</div>
+          </div>
+
+          <div class="row">
+            <button id="saveProjectBtn" class="primary" disabled>Save Design</button>
+            <button id="downloadBtn" class="secondary" disabled>Download Result</button>
+          </div>
+
+          <div class="plan-layout">
+            <div>
+              <h3>Landscape Plan</h3>
+              <div id="planList" class="plan-list muted">No design yet.</div>
+            </div>
+            <div class="estimate">
+              <span>Estimated range</span>
+              <strong id="estimateText">—</strong>
+              <small>Concept estimate only</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="view-projects" class="view">
+      <div class="page-head">
+        <div>
+          <div class="eyebrow">LIBRARY</div>
+          <h2>My Designs</h2>
+          <p>Saved designs are tied to your YardVision account.</p>
+        </div>
+        <button class="primary goto-design">New Design</button>
+      </div>
+      <p id="projectsLoginNote" class="notice">Please sign in to view saved designs.</p>
+      <div id="projectGrid" class="project-grid"></div>
+      <div id="projectEmpty" class="empty-state hidden">No saved designs yet.</div>
+    </section>
+
+    <section id="view-pro" class="view">
+      <div class="pro-head">
+        <div class="eyebrow">YARDVISION PRO</div>
+        <h2>More monthly landscape designs.</h2>
+        <p>Free and Pro limits are now enforced by the backend. Stripe can upgrade the user plan when configured.</p>
+      </div>
+      <div class="pricing-grid">
+        <div class="price-card">
+          <div class="plan-name">Free</div>
+          <div class="price">$0</div>
+          <p>Great for trying YardVision.</p>
+          <ul>
+            <li>3 designs/month by default</li>
+            <li>Saved projects</li>
+            <li>Before/after slider</li>
+          </ul>
+        </div>
+        <div class="price-card featured">
+          <div class="badge">PRO</div>
+          <div class="plan-name">YardVision Pro</div>
+          <div class="price">$9.99<span>/mo</span></div>
+          <p>For homeowners exploring more ideas.</p>
+          <ul>
+            <li>100 designs/month by default</li>
+            <li>Multiple variations</li>
+            <li>Cloud-ready project history</li>
+          </ul>
+          <button id="proBtn" class="primary full">Start Pro Test Checkout</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="view-account" class="view">
+      <div class="page-head">
+        <div>
+          <div class="eyebrow">ACCOUNT</div>
+          <h2>Your Account</h2>
+          <p>Email verification, password reset, plan, and monthly usage live here.</p>
+        </div>
+      </div>
+
+      <div class="account-grid">
+        <div id="accountCard" class="card">Not signed in.</div>
+        <div class="card">
+          <h3>Account Actions</h3>
+          <div class="stack">
+            <button id="openSignInFromAccount" class="primary">Sign In / Create Account</button>
+            <button id="verifyEmailBtn" class="secondary" disabled>Send Verification Email</button>
+            <button id="resetFromAccountBtn" class="secondary" disabled>Send Password Reset</button>
+            <button id="logoutBtn" class="secondary" disabled>Sign Out</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  
+    <section id="view-status" class="view">
+      <div class="page-head">
+        <div>
+          <div class="eyebrow">STAGING READINESS</div>
+          <h2>System Status</h2>
+          <p>YardVision checks whether each production service is actually configured without exposing secret values.</p>
+        </div>
+        <button id="refreshStatusBtn" class="secondary">Refresh Status</button>
+      </div>
+
+      <div id="statusOverall" class="status-card">Checking staging configuration…</div>
+      <div id="readinessGrid" class="readiness-grid"></div>
+
+      <div class="card staging-next">
+        <h3>Staging target</h3>
+        <p>Green core checks mean PostgreSQL, persistent image storage, Resend, session security, and OpenAI are configured. Stripe can be connected before subscription testing.</p>
+      </div>
+    </section>
+
+  </main>
+
+  <div id="authModal" class="modal hidden">
+    <div class="modal-card">
+      <button id="authClose" class="modal-x">×</button>
+      <div class="auth-tabs">
+        <button class="auth-tab active" data-auth-tab="login">Sign In</button>
+        <button class="auth-tab" data-auth-tab="signup">Create Account</button>
+        <button class="auth-tab" data-auth-tab="forgot">Forgot Password</button>
+      </div>
+
+      <div id="loginPane">
+        <h3>Sign In</h3>
+        <input id="loginEmail" type="email" placeholder="Email" />
+        <input id="loginPassword" type="password" placeholder="Password" />
+        <button id="loginBtn" class="primary full">Sign In</button>
+      </div>
+
+      <div id="signupPane" class="hidden">
+        <h3>Create Account</h3>
+        <input id="signupName" type="text" placeholder="Name" />
+        <input id="signupEmail" type="email" placeholder="Email" />
+        <input id="signupPassword" type="password" placeholder="Password (8+ characters)" />
+        <button id="signupBtn" class="primary full">Create Account</button>
+      </div>
+
+      <div id="forgotPane" class="hidden">
+        <h3>Reset Password</h3>
+        <input id="forgotEmail" type="email" placeholder="Account email" />
+        <button id="forgotBtn" class="primary full">Send Reset Link</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="resetModal" class="modal hidden">
+    <div class="modal-card">
+      <h3>Choose a New Password</h3>
+      <input id="resetPassword" type="password" placeholder="New password (8+ characters)" />
+      <button id="resetPasswordBtn" class="primary full">Update Password</button>
+    </div>
+  </div>
+
+  <div id="loading" class="modal hidden">
+    <div class="modal-card loading-card">
+      <div class="spinner"></div>
+      <h3>Designing your yard…</h3>
+      <p>Creating your landscape concept.</p>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  <script src="/app.js"></script>
+</body>
+</html>

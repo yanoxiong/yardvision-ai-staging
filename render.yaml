@@ -1,0 +1,72 @@
+services:
+  - type: web
+    name: yardvision-ai-staging
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: REQUIRE_EMAIL_VERIFICATION
+        value: true
+      - key: FREE_MONTHLY_GENERATIONS
+        value: 3
+      - key: PRO_MONTHLY_GENERATIONS
+        value: 100
+      - key: HOURLY_GENERATION_REQUEST_LIMIT
+        value: 30
+      - key: APP_HOST
+        fromService:
+          name: yardvision-ai-staging
+          type: web
+          property: host
+      - key: DATABASE_URL
+        fromDatabase:
+          name: yardvision-staging-db
+          property: connectionString
+      - key: DATABASE_SSL
+        value: true
+      - key: IMAGE_MODEL
+        value: gpt-image-2
+      - key: IMAGE_QUALITY
+        value: medium
+      - key: EMAIL_MODE
+        value: resend
+      - key: STORAGE_REGION
+        value: auto
+      - key: STORAGE_FORCE_PATH_STYLE
+        value: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: STORAGE_BUCKET
+        sync: false
+      - key: STORAGE_ENDPOINT
+        sync: false
+      - key: STORAGE_ACCESS_KEY_ID
+        sync: false
+      - key: STORAGE_SECRET_ACCESS_KEY
+        sync: false
+      - key: STORAGE_PUBLIC_BASE_URL
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_PRICE_ID
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false
+
+databases:
+  - name: yardvision-staging-db
+    plan: free
+    region: oregon
