@@ -87,6 +87,8 @@ function updateAuthUI() {
   const canManageBilling = !!currentUser && currentUser.plan === 'pro';
   $('billingBtn').classList.toggle('hidden', !canManageBilling);
   $('billingBtn').disabled = !canManageBilling;
+  $('proBtn').disabled = canManageBilling;
+  $('proBtn').textContent = canManageBilling ? 'Pro Active' : 'Start Pro Test Checkout';
   $('projectsLoginNote').classList.toggle('hidden', !!currentUser);
   updateUsageUI();
   renderAccount();

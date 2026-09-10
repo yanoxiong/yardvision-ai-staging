@@ -578,6 +578,20 @@ router.post('/stripe/create-checkout-session', requireAuth, async (req, res) => 
       });
       customerId = customer.id;
       await updateUserStripeStatus(user.id, { stripeCustomerId: customerId });
+    } else {
+      const subscriptions = await stripe.subscriptions.list({
+        customer: customerId,
+        status: 'all',
+        limit: 100
+      });
+      const existing = subscriptions.data.find(subscription =>
+        ['active', 'trialing', 'past_due', 'unpaid'].includes(subscription.status)
+      );
+      if (existing) {
+        return res.status(409).json({
+          error: 'YardVision Pro is already connected to this account. Use Manage Billing instead of starting another subscription.'
+        });
+      }
     }
 
     const appBaseUrl = (
@@ -641,6 +655,26 @@ router.post('/stripe/create-portal-session', requireAuth, async (req, res) => {
   }
 });
 
+async function syncStripeCustomerSubscription(stripe, customerId) {
+  const user = await findUserByStripeCustomerId(customerId);
+  if (!user) return;
+
+  const subscriptions = await stripe.subscriptions.list({
+    customer: customerId,
+    status: 'all',
+    limit: 100
+  });
+
+  const activeSubscription = subscriptions.data
+    .filter(subscription => ['active', 'trialing'].includes(subscription.status))
+    .sort((a, b) => Number(b.created || 0) - Number(a.created || 0))[0] || null;
+
+  await updateUserStripeStatus(user.id, {
+    plan: activeSubscription ? 'pro' : 'free',
+    stripeSubscriptionId: activeSubscription?.id || null
+  });
+}
+
 async function stripeWebhookHandler(req, res) {
   try {
     if (!process.env.STRIPE_SECRET_KEY || !process.env.STRIPE_WEBHOOK_SECRET) {
@@ -669,27 +703,11 @@ async function stripeWebhookHandler(req, res) {
 
     if (
       event.type === 'customer.subscription.created' ||
-      event.type === 'customer.subscription.updated'
+      event.type === 'customer.subscription.updated' ||
+      event.type === 'customer.subscription.deleted'
     ) {
       const subscription = event.data.object;
-      const user = await findUserByStripeCustomerId(subscription.customer);
-      if (user) {
-        await updateUserStripeStatus(user.id, {
-          plan: ['active', 'trialing'].includes(subscription.status) ? 'pro' : 'free',
-          stripeSubscriptionId: subscription.id
-        });
-      }
-    }
-
-    if (event.type === 'customer.subscription.deleted') {
-      const subscription = event.data.object;
-      const user = await findUserByStripeCustomerId(subscription.customer);
-      if (user) {
-        await updateUserStripeStatus(user.id, {
-          plan: 'free',
-          stripeSubscriptionId: null
-        });
-      }
+      await syncStripeCustomerSubscription(stripe, subscription.customer);
     }
 
     res.json({ received: true });
