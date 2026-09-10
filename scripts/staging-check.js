@@ -19,8 +19,7 @@ const storage = [
   'STORAGE_BUCKET',
   'STORAGE_ENDPOINT',
   'STORAGE_ACCESS_KEY_ID',
-  'STORAGE_SECRET_ACCESS_KEY',
-  'STORAGE_PUBLIC_BASE_URL'
+  'STORAGE_SECRET_ACCESS_KEY'
 ].every(present);
 const openai = present('OPENAI_API_KEY') && process.env.OPENAI_API_KEY !== 'your_openai_api_key_here';
 const stripe = [

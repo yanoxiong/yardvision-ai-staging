@@ -18,10 +18,10 @@ Set these Render environment variables:
 - `STORAGE_ENDPOINT`
 - `STORAGE_ACCESS_KEY_ID`
 - `STORAGE_SECRET_ACCESS_KEY`
-- `STORAGE_PUBLIC_BASE_URL`
 
-For staging, `STORAGE_PUBLIC_BASE_URL` can be the bucket's R2 development public URL.
-For production, use an R2 custom domain.
+YardVision v8.2 serves customer yard images through authenticated, signed app URLs.
+`STORAGE_PUBLIC_BASE_URL` is no longer required. After verifying v8.2 image loading,
+disable the R2 Public Development URL so bucket objects are not directly public.
 
 ## 3. Resend
 Use a verified sender/domain and set:

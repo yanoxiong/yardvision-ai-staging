@@ -329,8 +329,8 @@ $('saveProjectBtn').onclick = async () => {
         features: lastResponse.features || selectedFeatures,
         notes: lastResponse.notes || $('notes').value.trim(),
         estimate: lastResponse.estimateRange,
-        before: lastResponse.beforeImageUrl,
-        after: results[activeResult].url,
+        beforeKey: lastResponse.beforeImageKey,
+        afterKey: results[activeResult].key,
         variation: activeResult + 1
       })
     });

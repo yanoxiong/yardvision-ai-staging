@@ -20,6 +20,7 @@ const {
   saveProject,
   getProjectsForUser,
   deleteProjectForUser,
+  countProjectKeyReferences,
   countUsageThisMonth,
   recordUsage,
   updateUserStripeStatus,
@@ -27,7 +28,13 @@ const {
   recordStripeEvent
 } = require('../lib/db');
 const { estimateRange, buildPlan, buildPrompt } = require('../lib/yard');
-const { saveBuffer, storageMode } = require('../lib/storage');
+const {
+  saveBuffer,
+  readObject,
+  deleteObject,
+  keyFromStoredValue,
+  storageMode
+} = require('../lib/storage');
 const { sendVerificationEmail, sendPasswordResetEmail } = require('../lib/email');
 
 const router = express.Router();
@@ -109,6 +116,48 @@ function regenerateSession(req) {
   });
 }
 
+function mediaSigningSecret() {
+  return process.env.MEDIA_SIGNING_SECRET || process.env.SESSION_SECRET || 'yardvision-dev-media-secret';
+}
+
+function mediaSignature(userId, key, expires) {
+  return crypto
+    .createHmac('sha256', mediaSigningSecret())
+    .update(`${Number(userId)}\n${key}\n${expires}`)
+    .digest('hex');
+}
+
+function privateMediaUrl(userId, key, ttlSeconds = 12 * 60 * 60) {
+  const expires = Math.floor(Date.now() / 1000) + ttlSeconds;
+  const token = Buffer.from(String(key), 'utf8').toString('base64url');
+  const sig = mediaSignature(userId, key, expires);
+  return `/api/media/${token}?expires=${expires}&sig=${sig}`;
+}
+
+function validMediaSignature(userId, key, expires, sig) {
+  if (!key || !Number.isFinite(expires) || expires < Math.floor(Date.now() / 1000)) return false;
+  const expected = mediaSignature(userId, key, expires);
+  const provided = String(sig || '');
+  if (provided.length !== expected.length) return false;
+  try {
+    return crypto.timingSafeEqual(Buffer.from(provided, 'hex'), Buffer.from(expected, 'hex'));
+  } catch {
+    return false;
+  }
+}
+
+function projectForClient(userId, project) {
+  const beforeKey = project.beforeKey || keyFromStoredValue(project.before);
+  const afterKey = project.afterKey || keyFromStoredValue(project.after);
+  return {
+    ...project,
+    before: beforeKey ? privateMediaUrl(userId, beforeKey) : '',
+    after: afterKey ? privateMediaUrl(userId, afterKey) : '',
+    beforeKey: undefined,
+    afterKey: undefined
+  };
+}
+
 function usageLimitFor(user) {
   const free = Number(process.env.FREE_MONTHLY_GENERATIONS || 3);
   const pro = Number(process.env.PRO_MONTHLY_GENERATIONS || 100);
@@ -144,7 +193,7 @@ async function issuePasswordReset(user) {
   return sendPasswordResetEmail(user, token);
 }
 
-async function generateOne(client, uploadFile, prompt, idx) {
+async function generateOne(client, uploadFile, prompt, idx, userId) {
   const imageFile = await toFile(
     fs.createReadStream(uploadFile.path),
     uploadFile.originalname || `yard-photo-${idx + 1}.png`,
@@ -166,12 +215,12 @@ async function generateOne(client, uploadFile, prompt, idx) {
 
   const saved = await saveBuffer({
     buffer: Buffer.from(base64, 'base64'),
-    prefix: 'after',
+    prefix: `users/${Number(userId)}/after`,
     extension: 'jpg',
     contentType: 'image/jpeg'
   });
 
-  return { url: saved.url, key: saved.key };
+  return { key: saved.key };
 }
 
 
@@ -192,8 +241,7 @@ router.get('/readiness', async (_req, res) => {
       'STORAGE_BUCKET',
       'STORAGE_ENDPOINT',
       'STORAGE_ACCESS_KEY_ID',
-      'STORAGE_SECRET_ACCESS_KEY',
-      'STORAGE_PUBLIC_BASE_URL'
+      'STORAGE_SECRET_ACCESS_KEY'
     ].every(present),
     stripe: [
       'STRIPE_SECRET_KEY',
@@ -417,6 +465,27 @@ router.post('/auth/reset-password', async (req, res) => {
   res.json({ ok: true });
 });
 
+router.get('/media/:token', requireAuth, async (req, res) => {
+  try {
+    const key = Buffer.from(String(req.params.token || ''), 'base64url').toString('utf8');
+    const expires = Number(req.query.expires);
+    const sig = String(req.query.sig || '');
+
+    if (!validMediaSignature(req.session.userId, key, expires, sig)) {
+      return res.status(403).json({ error: 'This image link is invalid or has expired.' });
+    }
+
+    const object = await readObject(key);
+    res.set('Content-Type', object.contentType || 'application/octet-stream');
+    res.set('Cache-Control', 'private, max-age=300');
+    res.set('X-Content-Type-Options', 'nosniff');
+    res.send(object.buffer);
+  } catch (err) {
+    console.error('Private media read error:', err);
+    res.status(404).json({ error: 'Image not found.' });
+  }
+});
+
 router.get('/usage', requireAuth, async (req, res) => {
   const user = await findUserById(req.session.userId);
   res.json({ ok: true, usage: await usageStatus(user) });
@@ -452,7 +521,7 @@ router.post(
 
       const beforeSaved = await saveBuffer({
         buffer: await fsp.readFile(req.file.path),
-        prefix: 'before',
+        prefix: `users/${Number(user.id)}/before`,
         extension:
           req.file.mimetype === 'image/png' ? 'png' :
           req.file.mimetype === 'image/webp' ? 'webp' : 'jpg',
@@ -467,7 +536,8 @@ router.post(
           client,
           req.file,
           buildPrompt(style, features, budget, notes, 0),
-          0
+          0,
+          user.id
         )
       );
 
@@ -480,7 +550,8 @@ router.post(
             client,
             req.file,
             buildPrompt(style, features, budget, notes, 1),
-            1
+            1,
+            user.id
           )
         );
       } catch (variationError) {
@@ -492,8 +563,12 @@ router.post(
 
       res.json({
         ok: true,
-        beforeImageUrl: beforeSaved.url,
-        results,
+        beforeImageUrl: privateMediaUrl(user.id, beforeSaved.key),
+        beforeImageKey: beforeSaved.key,
+        results: results.map(item => ({
+          key: item.key,
+          url: privateMediaUrl(user.id, item.key)
+        })),
         style,
         budget,
         features,
@@ -543,17 +618,22 @@ router.post(
 );
 
 router.get('/projects', requireAuth, async (req, res) => {
+  const projects = await getProjectsForUser(req.session.userId);
   res.json({
     ok: true,
-    projects: await getProjectsForUser(req.session.userId)
+    projects: projects.map(project => projectForClient(req.session.userId, project))
   });
 });
 
 router.post('/projects', requireAuth, async (req, res) => {
   try {
     const payload = req.body || {};
-    if (!payload.before || !payload.after) {
-      return res.status(400).json({ error: 'Missing before/after images.' });
+    const beforeKey = String(payload.beforeKey || '');
+    const afterKey = String(payload.afterKey || '');
+    const userPrefix = `users/${Number(req.session.userId)}/`;
+
+    if (!beforeKey.startsWith(userPrefix) || !afterKey.startsWith(userPrefix)) {
+      return res.status(400).json({ error: 'Missing or invalid private before/after images.' });
     }
 
     const project = await saveProject(req.session.userId, {
@@ -562,13 +642,15 @@ router.post('/projects', requireAuth, async (req, res) => {
       budget: payload.budget || '',
       features: payload.features || [],
       notes: payload.notes || '',
-      before: payload.before,
-      after: payload.after,
+      before: 'private',
+      after: 'private',
+      beforeKey,
+      afterKey,
       estimate: payload.estimate || '',
       variation: payload.variation || 1
     });
 
-    res.json({ ok: true, project });
+    res.json({ ok: true, project: projectForClient(req.session.userId, project) });
   } catch (err) {
     res.status(500).json({
       error: 'Could not save project.',
@@ -578,8 +660,33 @@ router.post('/projects', requireAuth, async (req, res) => {
 });
 
 router.delete('/projects/:id', requireAuth, async (req, res) => {
-  await deleteProjectForUser(Number(req.params.id), req.session.userId);
-  res.json({ ok: true });
+  try {
+    const deleted = await deleteProjectForUser(Number(req.params.id), req.session.userId);
+    if (!deleted) return res.status(404).json({ error: 'Saved design not found.' });
+
+    // Only remove objects with explicit ownership-aware keys. Legacy public-URL
+    // projects remain readable through private links but are not auto-deleted.
+    const keys = [...new Set([
+      deleted.beforeKey,
+      deleted.afterKey
+    ].filter(Boolean))];
+
+    for (const key of keys) {
+      const references = await countProjectKeyReferences(key);
+      if (references === 0) {
+        try {
+          await deleteObject(key);
+        } catch (err) {
+          console.error('Stored image cleanup error:', err);
+        }
+      }
+    }
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Project deletion error:', err);
+    res.status(500).json({ error: 'Could not delete saved design.' });
+  }
 });
 
 router.post('/stripe/create-checkout-session', requireAuth, async (req, res) => {

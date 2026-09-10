@@ -75,11 +75,16 @@ async function ensureDatabaseReady() {
       notes TEXT,
       before_image TEXT NOT NULL,
       after_image TEXT NOT NULL,
+      before_key TEXT,
+      after_key TEXT,
       estimate TEXT,
       variation INTEGER NOT NULL DEFAULT 1,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
   `);
+
+  await pool.query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS before_key TEXT`);
+  await pool.query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS after_key TEXT`);
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS usage_events (
@@ -150,6 +155,8 @@ function normalizeProject(row) {
     notes: row.notes || '',
     before: row.before_image ?? row.before,
     after: row.after_image ?? row.after,
+    beforeKey: row.before_key ?? row.beforeKey ?? '',
+    afterKey: row.after_key ?? row.afterKey ?? '',
     estimate: row.estimate || '',
     variation: Number(row.variation || 1),
     createdAt: row.created_at ?? row.createdAt
@@ -279,6 +286,8 @@ async function saveProject(userId, payload) {
       notes: payload.notes || '',
       before: payload.before,
       after: payload.after,
+      beforeKey: payload.beforeKey || '',
+      afterKey: payload.afterKey || '',
       estimate: payload.estimate || '',
       variation: payload.variation || 1,
       createdAt: new Date().toISOString()
@@ -290,8 +299,8 @@ async function saveProject(userId, payload) {
 
   const result = await pool.query(
     `INSERT INTO projects
-     (user_id,name,style,budget,features,notes,before_image,after_image,estimate,variation)
-     VALUES ($1,$2,$3,$4,$5::jsonb,$6,$7,$8,$9,$10)
+     (user_id,name,style,budget,features,notes,before_image,after_image,before_key,after_key,estimate,variation)
+     VALUES ($1,$2,$3,$4,$5::jsonb,$6,$7,$8,$9,$10,$11,$12)
      RETURNING *`,
     [
       userId,
@@ -302,6 +311,8 @@ async function saveProject(userId, payload) {
       payload.notes || '',
       payload.before,
       payload.after,
+      payload.beforeKey || '',
+      payload.afterKey || '',
       payload.estimate || '',
       payload.variation || 1
     ]
@@ -326,13 +337,36 @@ async function getProjectsForUser(userId) {
 async function deleteProjectForUser(projectId, userId) {
   if (!usePostgres) {
     const projects = await readJson(projectsFile);
+    const existing = projects.find(
+      p => Number(p.id) === Number(projectId) && Number(p.userId) === Number(userId)
+    );
+    if (!existing) return null;
     const filtered = projects.filter(
       p => !(Number(p.id) === Number(projectId) && Number(p.userId) === Number(userId))
     );
     await writeJson(projectsFile, filtered);
-    return;
+    return normalizeProject(existing);
   }
-  await pool.query(`DELETE FROM projects WHERE id = $1 AND user_id = $2`, [projectId, userId]);
+  const result = await pool.query(
+    `DELETE FROM projects WHERE id = $1 AND user_id = $2 RETURNING *`,
+    [projectId, userId]
+  );
+  return normalizeProject(result.rows[0] || null);
+}
+
+async function countProjectKeyReferences(key) {
+  if (!key) return 0;
+  if (!usePostgres) {
+    const projects = await readJson(projectsFile);
+    return projects.filter(p => p.beforeKey === key || p.afterKey === key).length;
+  }
+  const result = await pool.query(
+    `SELECT COUNT(*)::int AS count
+     FROM projects
+     WHERE before_key = $1 OR after_key = $1`,
+    [key]
+  );
+  return Number(result.rows[0]?.count || 0);
 }
 
 function monthStartIso() {
@@ -418,6 +452,7 @@ module.exports = {
   saveProject,
   getProjectsForUser,
   deleteProjectForUser,
+  countProjectKeyReferences,
   countUsageThisMonth,
   recordUsage,
   updateUserStripeStatus,
