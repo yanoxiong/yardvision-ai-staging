@@ -98,6 +98,17 @@ function futureIso(ms) {
   return new Date(Date.now() + ms).toISOString();
 }
 
+function clientErrorDetails(err) {
+  if (process.env.NODE_ENV === 'production') return undefined;
+  return String(err?.message || err || '');
+}
+
+function regenerateSession(req) {
+  return new Promise((resolve, reject) => {
+    req.session.regenerate(err => err ? reject(err) : resolve());
+  });
+}
+
 function usageLimitFor(user) {
   const free = Number(process.env.FREE_MONTHLY_GENERATIONS || 3);
   const pro = Number(process.env.PRO_MONTHLY_GENERATIONS || 100);
@@ -258,6 +269,7 @@ router.post('/auth/signup', async (req, res) => {
       passwordHash: await bcrypt.hash(password, 10)
     });
 
+    await regenerateSession(req);
     req.session.userId = user.id;
     req.session.user = publicUser(user);
 
@@ -277,7 +289,7 @@ router.post('/auth/signup', async (req, res) => {
   } catch (err) {
     res.status(500).json({
       error: 'Could not create account.',
-      details: String(err?.message || err || '')
+      details: clientErrorDetails(err)
     });
   }
 });
@@ -292,6 +304,7 @@ router.post('/auth/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid email or password.' });
     }
 
+    await regenerateSession(req);
     req.session.userId = user.id;
     req.session.user = publicUser(user);
 
@@ -303,13 +316,25 @@ router.post('/auth/login', async (req, res) => {
   } catch (err) {
     res.status(500).json({
       error: 'Could not sign in.',
-      details: String(err?.message || err || '')
+      details: clientErrorDetails(err)
     });
   }
 });
 
 router.post('/auth/logout', (req, res) => {
-  req.session.destroy(() => res.json({ ok: true }));
+  req.session.destroy(err => {
+    if (err) {
+      console.error('Session logout error:', err);
+      return res.status(500).json({ error: 'Could not sign out.' });
+    }
+    res.clearCookie('yardvision_v8.sid', {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      path: '/'
+    });
+    res.json({ ok: true });
+  });
 });
 
 router.post('/auth/resend-verification', requireAuth, async (req, res) => {
@@ -503,13 +528,13 @@ router.post(
       if (status === 400) {
         return res.status(400).json({
           error: 'The image request was rejected.',
-          details: msg
+          details: clientErrorDetails(err)
         });
       }
 
       res.status(500).json({
         error: 'YardVision could not generate the design.',
-        details: msg
+        details: clientErrorDetails(err)
       });
     } finally {
       if (req.file?.path) fsp.unlink(req.file.path).catch(() => {});
@@ -547,7 +572,7 @@ router.post('/projects', requireAuth, async (req, res) => {
   } catch (err) {
     res.status(500).json({
       error: 'Could not save project.',
-      details: String(err?.message || err || '')
+      details: clientErrorDetails(err)
     });
   }
 });
@@ -562,7 +587,7 @@ router.post('/stripe/create-checkout-session', requireAuth, async (req, res) => 
     if (!(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_PRICE_ID)) {
       return res.status(400).json({
         error: 'Stripe test mode is not configured yet.',
-        details: 'Add STRIPE_SECRET_KEY and STRIPE_PRICE_ID to .env to enable test checkout.'
+        details: process.env.NODE_ENV === 'production' ? undefined : 'Add STRIPE_SECRET_KEY and STRIPE_PRICE_ID to .env to enable checkout.'
       });
     }
 
@@ -612,7 +637,7 @@ router.post('/stripe/create-checkout-session', requireAuth, async (req, res) => 
   } catch (err) {
     res.status(500).json({
       error: 'Could not create Stripe checkout session.',
-      details: String(err?.message || err || '')
+      details: clientErrorDetails(err)
     });
   }
 });
@@ -650,7 +675,7 @@ router.post('/stripe/create-portal-session', requireAuth, async (req, res) => {
   } catch (err) {
     res.status(500).json({
       error: 'Could not open Stripe billing portal.',
-      details: String(err?.message || err || '')
+      details: clientErrorDetails(err)
     });
   }
 });

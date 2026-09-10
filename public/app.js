@@ -1,6 +1,15 @@
 
 const $ = id => document.getElementById(id);
 
+function esc(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('\"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
 let currentUser = null;
 let currentUsage = null;
 let currentFile = null;
@@ -88,7 +97,7 @@ function updateAuthUI() {
   $('billingBtn').classList.toggle('hidden', !canManageBilling);
   $('billingBtn').disabled = !canManageBilling;
   $('proBtn').disabled = canManageBilling;
-  $('proBtn').textContent = canManageBilling ? 'Pro Active' : 'Start Pro Test Checkout';
+  $('proBtn').textContent = canManageBilling ? 'Pro Active' : 'Start Pro';
   $('projectsLoginNote').classList.toggle('hidden', !!currentUser);
   updateUsageUI();
   renderAccount();
@@ -108,11 +117,11 @@ function renderAccount() {
     : 'Usage unavailable';
 
   $('accountCard').innerHTML = `
-    <h3>${currentUser.name}</h3>
-    <div class="account-row"><strong>Email:</strong> ${currentUser.email}</div>
-    <div class="account-row"><strong>Plan:</strong> ${(currentUser.plan || 'free').toUpperCase()}</div>
-    <div class="account-row"><strong>Email:</strong> <span class="${currentUser.emailVerified ? 'verified' : 'unverified'}">${currentUser.emailVerified ? 'Verified' : 'Not verified'}</span></div>
-    <div class="account-row"><strong>Usage:</strong> ${usage}</div>
+    <h3>${esc(currentUser.name)}</h3>
+    <div class="account-row"><strong>Email:</strong> ${esc(currentUser.email)}</div>
+    <div class="account-row"><strong>Plan:</strong> ${esc((currentUser.plan || 'free').toUpperCase())}</div>
+    <div class="account-row"><strong>Verification:</strong> <span class="${currentUser.emailVerified ? 'verified' : 'unverified'}">${currentUser.emailVerified ? 'Verified' : 'Not verified'}</span></div>
+    <div class="account-row"><strong>Usage:</strong> ${esc(usage)}</div>
   `;
 }
 
@@ -147,7 +156,7 @@ function updateSlider() {
 
 function renderPlan(items) {
   $('planList').innerHTML =
-    (items || []).map(x => `<div>• ${x}</div>`).join('') ||
+    (items || []).map(x => `<div>• ${esc(x)}</div>`).join('') ||
     '<span class="muted">No design yet.</span>';
 }
 
@@ -359,10 +368,10 @@ async function renderProjects() {
       const card = document.createElement('article');
       card.className = 'project-card';
       card.innerHTML = `
-        <img src="${project.after}" alt="${project.style} saved yard design">
+        <img src="${esc(project.after)}" alt="${esc(project.style)} saved yard design">
         <div class="body">
-          <strong>${project.name}</strong>
-          <p class="muted">${new Date(project.createdAt).toLocaleDateString()} • ${project.budget || ''}</p>
+          <strong>${esc(project.name)}</strong>
+          <p class="muted">${new Date(project.createdAt).toLocaleDateString()} • ${esc(project.budget || '')}</p>
           <div class="row">
             <button class="secondary open-btn">Open</button>
             <button class="secondary delete-btn">Delete</button>
@@ -399,7 +408,7 @@ async function renderProjects() {
       grid.appendChild(card);
     });
   } catch (err) {
-    grid.innerHTML = `<div class="notice">${err.message}</div>`;
+    grid.innerHTML = `<div class="notice">${esc(err.message || 'Could not load designs')}</div>`;
   }
 }
 

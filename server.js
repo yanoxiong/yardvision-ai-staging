@@ -23,8 +23,31 @@ if (process.env.NODE_ENV === 'production') {
   }
 }
 
+const imageSources = ["'self'", 'data:', 'blob:'];
+if (process.env.STORAGE_PUBLIC_BASE_URL) {
+  try {
+    imageSources.push(new URL(process.env.STORAGE_PUBLIC_BASE_URL).origin);
+  } catch {
+    console.warn('Ignoring invalid STORAGE_PUBLIC_BASE_URL while building CSP.');
+  }
+}
+
 app.use(helmet({
-  contentSecurityPolicy: false,
+  contentSecurityPolicy: process.env.NODE_ENV === 'production'
+    ? {
+        directives: {
+          defaultSrc: ["'self'"],
+          baseUri: ["'self'"],
+          scriptSrc: ["'self'"],
+          styleSrc: ["'self'"],
+          styleSrcAttr: ["'unsafe-inline'"],
+          imgSrc: imageSources,
+          connectSrc: ["'self'"],
+          objectSrc: ["'none'"],
+          frameAncestors: ["'none'"]
+        }
+      }
+    : false,
   crossOriginResourcePolicy: { policy: 'cross-origin' }
 }));
 app.use(compression());
@@ -99,7 +122,11 @@ app.use((req, res, next) => {
 
 app.use((err, _req, res, _next) => {
   console.error('Server error:', err);
-  res.status(500).json({ error: 'Unexpected server error.', details: String(err?.message || err || '') });
+  const payload = { error: 'Unexpected server error.' };
+  if (process.env.NODE_ENV !== 'production') {
+    payload.details = String(err?.message || err || '');
+  }
+  res.status(500).json(payload);
 });
 
 ensureDatabaseReady()
