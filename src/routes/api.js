@@ -159,7 +159,7 @@ function projectForClient(userId, project) {
 
 function usageLimitFor(user) {
   const free = Number(process.env.FREE_MONTHLY_GENERATIONS || 3);
-  const pro = Number(process.env.PRO_MONTHLY_GENERATIONS || 100);
+  const pro = Number(process.env.PRO_MONTHLY_GENERATIONS || 40);
   return user?.plan === 'pro' ? pro : free;
 }
 
