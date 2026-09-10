@@ -32,6 +32,7 @@ const { sendVerificationEmail, sendPasswordResetEmail } = require('../lib/email'
 
 const router = express.Router();
 const uploadsDir = path.join(__dirname, '..', '..', 'uploads');
+fs.mkdirSync(uploadsDir, { recursive: true });
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, uploadsDir),
