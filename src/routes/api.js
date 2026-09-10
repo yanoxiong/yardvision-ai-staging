@@ -603,6 +603,44 @@ router.post('/stripe/create-checkout-session', requireAuth, async (req, res) => 
   }
 });
 
+
+router.post('/stripe/create-portal-session', requireAuth, async (req, res) => {
+  try {
+    if (!process.env.STRIPE_SECRET_KEY) {
+      return res.status(400).json({
+        error: 'Stripe billing is not configured yet.'
+      });
+    }
+
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+    const user = await findUserById(req.session.userId);
+    const customerId = user?.stripeCustomerId || null;
+
+    if (!customerId) {
+      return res.status(400).json({
+        error: 'No Stripe customer is connected to this account yet.'
+      });
+    }
+
+    const appBaseUrl = (
+      process.env.APP_BASE_URL ||
+      (process.env.APP_HOST ? `https://${process.env.APP_HOST}` : `http://localhost:${process.env.PORT || 3018}`)
+    ).replace(/\/+$/, '');
+
+    const portal = await stripe.billingPortal.sessions.create({
+      customer: customerId,
+      return_url: `${appBaseUrl}?billing=return`
+    });
+
+    res.json({ ok: true, url: portal.url });
+  } catch (err) {
+    res.status(500).json({
+      error: 'Could not open Stripe billing portal.',
+      details: String(err?.message || err || '')
+    });
+  }
+});
+
 async function stripeWebhookHandler(req, res) {
   try {
     if (!process.env.STRIPE_SECRET_KEY || !process.env.STRIPE_WEBHOOK_SECRET) {

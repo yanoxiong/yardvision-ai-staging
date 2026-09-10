@@ -84,6 +84,9 @@ function updateAuthUI() {
   $('logoutBtn').disabled = !currentUser;
   $('verifyEmailBtn').disabled = !currentUser || !!currentUser.emailVerified;
   $('resetFromAccountBtn').disabled = !currentUser;
+  const canManageBilling = !!currentUser && currentUser.plan === 'pro';
+  $('billingBtn').classList.toggle('hidden', !canManageBilling);
+  $('billingBtn').disabled = !canManageBilling;
   $('projectsLoginNote').classList.toggle('hidden', !!currentUser);
   updateUsageUI();
   renderAccount();
@@ -490,6 +493,27 @@ $('resetFromAccountBtn').onclick = async () => {
   }
 };
 
+$('billingBtn').onclick = async () => {
+  if (!currentUser) return openAuth('login');
+
+  try {
+    $('billingBtn').disabled = true;
+    $('billingBtn').textContent = 'Opening billing…';
+
+    const d = await api('/api/stripe/create-portal-session', {
+      method: 'POST',
+      body: JSON.stringify({})
+    });
+
+    if (!d.url) throw new Error('Stripe billing portal URL was not returned.');
+    window.location.href = d.url;
+  } catch (err) {
+    toast(err.message || 'Could not open billing');
+    $('billingBtn').disabled = false;
+    $('billingBtn').textContent = 'Manage Billing';
+  }
+};
+
 async function signOut() {
   try {
     await api('/api/auth/logout', {
@@ -559,6 +583,12 @@ async function handleUrlActions() {
   }
   if (params.get('checkout') === 'cancel') {
     toast('Stripe checkout canceled');
+    history.replaceState({}, '', location.pathname);
+  }
+  if (params.get('billing') === 'return') {
+    await refreshSession();
+    showView('account');
+    toast('Billing information refreshed');
     history.replaceState({}, '', location.pathname);
   }
 }
