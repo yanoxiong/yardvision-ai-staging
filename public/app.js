@@ -38,7 +38,6 @@ function showView(name) {
   );
   if (name === 'projects') renderProjects();
   if (name === 'account') renderAccount();
-  if (name === 'status') loadReadiness();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -127,11 +126,10 @@ function renderAccount() {
 
 async function checkHealth() {
   try {
-    const d = await api('/api/health');
-    $('serverStatus').textContent =
-      `v8 STAGING • DB ${d.databaseMode} • Storage ${d.storageMode} • Email ${d.emailMode} • Stripe ${d.stripeConfigured ? 'configured' : 'not configured'}`;
+    await api('/api/health');
+    $('serverStatus').textContent = 'YardVision is ready to design.';
   } catch {
-    $('serverStatus').textContent = 'Server not reachable';
+    $('serverStatus').textContent = 'YardVision is temporarily unavailable. Please try again.';
   }
 }
 
@@ -624,45 +622,6 @@ $('resetPasswordBtn').onclick = async () => {
 };
 
 
-async function loadReadiness() {
-  const grid = $('readinessGrid');
-  if (!grid) return;
-  grid.innerHTML = '';
-  $('statusOverall').textContent = 'Checking staging configuration…';
-
-  try {
-    const response = await fetch('/api/readiness', { credentials: 'same-origin' });
-    const data = await response.json();
-    const labels = {
-      openai: 'OpenAI API',
-      postgres: 'PostgreSQL',
-      sessionSecret: 'Session Secret',
-      email: 'Resend Email',
-      storage: 'Cloud Storage',
-      stripe: 'Stripe',
-      verificationRequired: 'Email Verification',
-      productionMode: 'Production Mode'
-    };
-
-    Object.entries(data.checks || {}).forEach(([key, ok]) => {
-      const card = document.createElement('div');
-      card.className = `readiness-card ${ok ? 'pass' : 'fail'}`;
-      card.innerHTML = `
-        <strong>${labels[key] || key}</strong>
-        <span class="readiness-state">${ok ? 'READY' : 'NOT CONFIGURED'}</span>
-      `;
-      grid.appendChild(card);
-    });
-
-    $('statusOverall').textContent = data.ok
-      ? '✅ Core staging services are ready.'
-      : '⚠️ Staging is not fully configured yet. Connect the red services below.';
-  } catch (err) {
-    $('statusOverall').textContent = 'Could not load staging readiness.';
-  }
-}
-
-if ($('refreshStatusBtn')) $('refreshStatusBtn').onclick = loadReadiness;
 
 (async function init() {
   await checkHealth();

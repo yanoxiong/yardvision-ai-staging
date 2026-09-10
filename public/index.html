@@ -3,32 +3,29 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>YardVision AI v7</title>
+  <title>YardVision AI</title>
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
   <header class="topbar">
-    <button class="brand nav-btn" data-view="home">🌿 <strong>YardVision AI</strong> <span class="version">v8</span></button>
+    <button class="brand nav-btn" data-view="home">🌿 <strong>YardVision AI</strong></button>
     <nav class="nav">
       <button class="nav-btn active" data-view="home">Home</button>
       <button class="nav-btn" data-view="design">Design</button>
       <button class="nav-btn" data-view="projects">My Designs</button>
       <button class="nav-btn" data-view="pro">Pro</button>
-      <button class="nav-btn" data-view="account">Account</button><button class="nav-btn" data-view="status">Status</button>
+      <button class="nav-btn" data-view="account">Account</button>
     </nav>
     <div class="header-auth"><button id="authOpenBtn" class="secondary">Sign In</button><button id="headerLogoutBtn" class="secondary hidden">Sign Out</button></div>
   </header>
-  <div class="live-build-banner">
-    🚀 STAGING BUILD: YardVision AI v8 &nbsp; • &nbsp; PORT 3018
-  </div>
 
   <main>
     <section id="view-home" class="view active">
       <div class="hero">
         <div>
-          <div class="eyebrow">PRODUCTION FOUNDATION</div>
+          <div class="eyebrow">AI LANDSCAPE DESIGN</div>
           <h1>Design a better yard. Save it to your account.</h1>
-          <p class="lead">v7 adds persistent image storage, email verification, password reset, plan usage limits, PostgreSQL support, and Stripe-ready subscriptions.</p>
+          <p class="lead">Upload a photo of your yard, explore personalized landscape ideas, compare before and after, and save the designs you love.</p>
           <div class="row">
             <button class="primary goto-design">Design My Yard</button>
             <button class="secondary" id="homeDemoBtn">Use Demo Yard</button>
@@ -163,7 +160,7 @@
       <div class="pro-head">
         <div class="eyebrow">YARDVISION PRO</div>
         <h2>More monthly landscape designs.</h2>
-        <p>Free and Pro limits are now enforced by the backend. Stripe can upgrade the user plan when configured.</p>
+        <p>Choose the plan that fits how many landscape ideas you want to explore each month.</p>
       </div>
       <div class="pricing-grid">
         <div class="price-card">
@@ -171,7 +168,7 @@
           <div class="price">$0</div>
           <p>Great for trying YardVision.</p>
           <ul>
-            <li>3 designs/month by default</li>
+            <li>3 designs/month</li>
             <li>Saved projects</li>
             <li>Before/after slider</li>
           </ul>
@@ -182,11 +179,11 @@
           <div class="price">$9.99<span>/mo</span></div>
           <p>For homeowners exploring more ideas.</p>
           <ul>
-            <li>100 designs/month by default</li>
+            <li>100 designs/month</li>
             <li>Multiple variations</li>
-            <li>Cloud-ready project history</li>
+            <li>Saved design history</li>
           </ul>
-          <button id="proBtn" class="primary full">Start Pro Test Checkout</button>
+          <button id="proBtn" class="primary full">Start Pro</button>
         </div>
       </div>
     </section>
@@ -215,24 +212,7 @@
       </div>
     </section>
   
-    <section id="view-status" class="view">
-      <div class="page-head">
-        <div>
-          <div class="eyebrow">STAGING READINESS</div>
-          <h2>System Status</h2>
-          <p>YardVision checks whether each production service is actually configured without exposing secret values.</p>
-        </div>
-        <button id="refreshStatusBtn" class="secondary">Refresh Status</button>
-      </div>
 
-      <div id="statusOverall" class="status-card">Checking staging configuration…</div>
-      <div id="readinessGrid" class="readiness-grid"></div>
-
-      <div class="card staging-next">
-        <h3>Staging target</h3>
-        <p>Green core checks mean PostgreSQL, persistent image storage, Resend, session security, and OpenAI are configured. Stripe can be connected before subscription testing.</p>
-      </div>
-    </section>
 
   </main>
 

@@ -32,8 +32,7 @@ const {
   saveBuffer,
   readObject,
   deleteObject,
-  keyFromStoredValue,
-  storageMode
+  keyFromStoredValue
 } = require('../lib/storage');
 const { sendVerificationEmail, sendPasswordResetEmail } = require('../lib/email');
 
@@ -269,24 +268,8 @@ router.get('/readiness', async (_req, res) => {
   });
 });
 
-router.get('/health', async (req, res) => {
-  let user = null;
-  let usage = null;
-  if (req.session.userId) {
-    user = await findUserById(req.session.userId);
-    if (user) usage = await usageStatus(user);
-  }
-
-  res.json({
-    ok: true,
-    apiKeyConfigured: !!process.env.OPENAI_API_KEY,
-    stripeConfigured: !!(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_PRICE_ID),
-    databaseMode: process.env.DATABASE_URL ? 'postgresql' : 'local-json-fallback',
-    storageMode: storageMode(),
-    emailMode: process.env.EMAIL_MODE || 'console',
-    currentUser: publicUser(user),
-    usage
-  });
+router.get('/health', (_req, res) => {
+  res.json({ ok: true });
 });
 
 router.get('/auth/me', async (req, res) => {
@@ -693,7 +676,7 @@ router.post('/stripe/create-checkout-session', requireAuth, async (req, res) => 
   try {
     if (!(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_PRICE_ID)) {
       return res.status(400).json({
-        error: 'Stripe test mode is not configured yet.',
+        error: 'Billing is not available right now.',
         details: process.env.NODE_ENV === 'production' ? undefined : 'Add STRIPE_SECRET_KEY and STRIPE_PRICE_ID to .env to enable checkout.'
       });
     }

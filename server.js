@@ -132,7 +132,7 @@ app.use((err, _req, res, _next) => {
 ensureDatabaseReady()
   .then(() => {
     app.listen(PORT, () => {
-      console.log(`YardVision AI v8 STAGING running at http://localhost:${PORT}`);
+      console.log(`YardVision AI running on port ${PORT}`);
       console.log(`Database mode: ${process.env.DATABASE_URL ? 'PostgreSQL' : 'local JSON fallback'}`);
       console.log(`OpenAI configured: ${process.env.OPENAI_API_KEY ? 'YES' : 'NO'}`);
       console.log(`Stripe configured: ${process.env.STRIPE_SECRET_KEY && process.env.STRIPE_PRICE_ID ? 'YES' : 'NO'}`);
