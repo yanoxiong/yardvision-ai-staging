@@ -685,6 +685,26 @@ router.post('/stripe/create-checkout-session', requireAuth, async (req, res) => 
     const user = await findUserById(req.session.userId);
     let customerId = user?.stripeCustomerId || null;
 
+    if (customerId) {
+      try {
+        await stripe.customers.retrieve(customerId);
+      } catch (err) {
+        const message = String(err?.message || '').toLowerCase();
+        const missingCustomer =
+          err?.code === 'resource_missing' ||
+          message.includes('no such customer');
+
+        if (!missingCustomer) throw err;
+
+        await updateUserStripeStatus(user.id, {
+          plan: 'free',
+          stripeCustomerId: null,
+          stripeSubscriptionId: null
+        });
+        customerId = null;
+      }
+    }
+
     if (!customerId) {
       const customer = await stripe.customers.create({
         email: user.email,
@@ -748,6 +768,28 @@ router.post('/stripe/create-portal-session', requireAuth, async (req, res) => {
     if (!customerId) {
       return res.status(400).json({
         error: 'No Stripe customer is connected to this account yet.'
+      });
+    }
+
+    try {
+      await stripe.customers.retrieve(customerId);
+    } catch (err) {
+      const message = String(err?.message || '').toLowerCase();
+      const missingCustomer =
+        err?.code === 'resource_missing' ||
+        message.includes('no such customer');
+
+      if (!missingCustomer) throw err;
+
+      await updateUserStripeStatus(user.id, {
+        plan: 'free',
+        stripeCustomerId: null,
+        stripeSubscriptionId: null
+      });
+
+      return res.status(409).json({
+        error: 'Your previous test billing connection was cleared. Start YardVision Pro again to connect live billing.',
+        code: 'STALE_STRIPE_CUSTOMER'
       });
     }
 

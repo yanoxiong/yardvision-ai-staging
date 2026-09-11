@@ -517,6 +517,7 @@ $('billingBtn').onclick = async () => {
     if (!d.url) throw new Error('Stripe billing portal URL was not returned.');
     window.location.href = d.url;
   } catch (err) {
+    await refreshSession();
     toast(err.message || 'Could not open billing');
     $('billingBtn').disabled = false;
     $('billingBtn').textContent = 'Manage Billing';
