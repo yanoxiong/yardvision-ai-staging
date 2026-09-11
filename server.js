@@ -121,6 +121,12 @@ app.use((req, res, next) => {
 });
 
 app.use((err, _req, res, _next) => {
+  if (err?.message === 'Origin not allowed by YardVision CORS policy.') {
+    return res.status(403).json({ error: 'Origin not allowed.' });
+  }
+  if (err?.message === 'Origin not allowed by YardVision CORS policy.') {
+    return res.status(403).json({ error: 'Origin not allowed.' });
+  }
   console.error('Server error:', err);
   const payload = { error: 'Unexpected server error.' };
   if (process.env.NODE_ENV !== 'production') {
