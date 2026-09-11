@@ -107,7 +107,7 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 app.use('/outputs', express.static(path.join(__dirname, 'outputs')));
 app.use(express.static(publicDir));
 app.get('/healthz', (_req, res) => res.status(200).send('ok'));

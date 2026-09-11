@@ -58,6 +58,27 @@ const upload = multer({
   }
 });
 
+async function detectImageType(filePath) {
+  const handle = await fsp.open(filePath, 'r');
+  try {
+    const buffer = Buffer.alloc(12);
+    await handle.read(buffer, 0, 12, 0);
+
+    if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
+      return { mime: 'image/jpeg', extension: 'jpg' };
+    }
+    if (buffer.subarray(0, 8).equals(Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a]))) {
+      return { mime: 'image/png', extension: 'png' };
+    }
+    if (buffer.subarray(0, 4).toString('ascii') === 'RIFF' && buffer.subarray(8, 12).toString('ascii') === 'WEBP') {
+      return { mime: 'image/webp', extension: 'webp' };
+    }
+    return null;
+  } finally {
+    await handle.close();
+  }
+}
+
 function requireAuth(req, res, next) {
   if (!req.session.userId) {
     return res.status(401).json({ error: 'Please sign in first.', code: 'AUTH_REQUIRED' });
@@ -483,6 +504,13 @@ router.post(
   async (req, res) => {
     try {
       if (!req.file) return res.status(400).json({ error: 'Please upload a yard image.' });
+
+      const detectedImage = await detectImageType(req.file.path);
+      if (!detectedImage) {
+        return res.status(400).json({ error: 'The uploaded file is not a valid JPG, PNG, or WEBP image.' });
+      }
+      req.file.mimetype = detectedImage.mime;
+      req.file.originalname = `yard-photo.${detectedImage.extension}`;
       if (!process.env.OPENAI_API_KEY) {
         return res.status(400).json({ error: 'OPENAI_API_KEY is missing in .env.' });
       }
