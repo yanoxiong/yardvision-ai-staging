@@ -75,7 +75,7 @@ function updateUsageUI() {
 
 async function refreshSession() {
   try {
-    const data = await api('/api/auth/me');
+    const data = await api('/api/auth/me?fresh=' + Date.now());
     currentUser = data.user || null;
     currentUsage = data.usage || null;
   } catch {
@@ -589,7 +589,11 @@ async function handleUrlActions() {
   if (params.get('checkout') === 'success') {
     toast('Stripe checkout returned successfully');
     history.replaceState({}, '', location.pathname);
-    setTimeout(refreshSession, 1000);
+    for (const delay of [500, 1000, 2000, 3000]) {
+      await new Promise(resolve => setTimeout(resolve, delay));
+      await refreshSession();
+      if (currentUser?.plan === 'pro') break;
+    }
   }
   if (params.get('checkout') === 'cancel') {
     toast('Stripe checkout canceled');

@@ -273,6 +273,7 @@ router.get('/health', (_req, res) => {
 });
 
 router.get('/auth/me', async (req, res) => {
+  res.set('Cache-Control', 'no-store');
   if (!req.session.userId) return res.json({ ok: true, user: null, usage: null });
   const user = await findUserById(req.session.userId);
   res.json({ ok: true, user: publicUser(user), usage: user ? await usageStatus(user) : null });
