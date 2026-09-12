@@ -391,12 +391,17 @@ router.post('/auth/logout', (req, res) => {
 });
 
 router.post('/auth/resend-verification', requireAuth, async (req, res) => {
-  const user = await findUserById(req.session.userId);
-  if (!user) return res.status(404).json({ error: 'Account not found.' });
-  if (user.emailVerified) return res.json({ ok: true, alreadyVerified: true });
+  try {
+    const user = await findUserById(req.session.userId);
+    if (!user) return res.status(404).json({ error: 'Account not found.' });
+    if (user.emailVerified) return res.json({ ok: true, alreadyVerified: true });
 
-  const result = await issueVerification(user);
-  res.json({ ok: true, previewUrl: result?.previewUrl || null });
+    const result = await issueVerification(user);
+    res.json({ ok: true, previewUrl: result?.previewUrl || null });
+  } catch (err) {
+    console.error('Verification resend error:', err);
+    res.status(502).json({ error: 'Verification email could not be sent. Please try again later.' });
+  }
 });
 
 router.post('/auth/verify-email', async (req, res) => {
