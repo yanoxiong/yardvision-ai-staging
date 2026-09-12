@@ -1,6 +1,7 @@
 
 require('dotenv').config();
 const path = require('path');
+const crypto = require('crypto');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -51,6 +52,12 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' }
 }));
 app.use(compression());
+
+app.use((req, res, next) => {
+  req.requestId = crypto.randomUUID();
+  res.set('X-Request-ID', req.requestId);
+  next();
+});
 
 const allowedOrigins = String(process.env.ALLOWED_ORIGINS || '')
   .split(',')
@@ -120,15 +127,12 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use((err, _req, res, _next) => {
+app.use((err, req, res, _next) => {
   if (err?.message === 'Origin not allowed by YardVision CORS policy.') {
-    return res.status(403).json({ error: 'Origin not allowed.' });
+    return res.status(403).json({ error: 'Origin not allowed.', requestId: req.requestId });
   }
-  if (err?.message === 'Origin not allowed by YardVision CORS policy.') {
-    return res.status(403).json({ error: 'Origin not allowed.' });
-  }
-  console.error('Server error:', err);
-  const payload = { error: 'Unexpected server error.' };
+  console.error('Server error:', { requestId: req.requestId, error: err });
+  const payload = { error: 'Unexpected server error.', requestId: req.requestId };
   if (process.env.NODE_ENV !== 'production') {
     payload.details = String(err?.message || err || '');
   }
