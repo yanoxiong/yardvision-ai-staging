@@ -34,15 +34,6 @@ jobs:
         run: |
           curl --fail --location --silent --show-error --max-time 30 https://loremfile.dev/heic/640x480.heic --output site/sample.heic
           test "$(wc -c < site/sample.heic)" -eq 5066
-          BROWSER="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium)"
-          python3 -m http.server 8099 --bind 127.0.0.1 --directory site >/tmp/heic-poc-http.log 2>&1 &
-          SERVER_PID=$!
-          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
-          sleep 1
-          timeout 45 "$BROWSER" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=25000 --dump-dom http://127.0.0.1:8099/ci-test.html >/tmp/heic-poc-result.html 2>/tmp/heic-poc-chrome.log
-          if ! grep -q 'data-test="PASS"' /tmp/heic-poc-result.html; then
-            grep -o 'data-test="[^"]*"\|data-detail="[^"]*"' /tmp/heic-poc-result.html | head -5 || true
-            grep -i 'Content Security Policy\|Error\|worker' /tmp/heic-poc-chrome.log | head -10 || true
-            exit 1
-          fi
-          echo 'Browser HEIC to JPEG under strict CSP: PASS'
+          CHROME_BIN="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium)"
+          export CHROME_BIN
+          timeout 50 node tests/browser-smoke.mjs
