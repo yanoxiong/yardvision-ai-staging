@@ -1,0 +1,10 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; worker-src 'self' blob:; img-src 'self' blob:; style-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'">
+<title>HEIC strict-CSP browser smoke test</title></head><body>
+<input id="file" type="file" accept=".heic,image/heic">
+<div id="status" role="status">Initialising test</div>
+<img id="preview" hidden alt="JPEG preview"><a id="download" hidden>Download</a>
+<script src="./probe.js"></script>
+<script type="module" src="./app.mjs"></script>
+<script type="module" src="./ci-test.mjs"></script>
+</body></html>
