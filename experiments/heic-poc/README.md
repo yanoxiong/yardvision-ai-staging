@@ -12,7 +12,7 @@ Galaxy S25 / Chrome displayed a genuine photo ending in \`.heic\`, but refused t
 
 Prototype dependency is pinned to **heic-to 1.6.7** (LGPL-3.0). The upstream package provides HEIC conversion via libheif and a worker-capable \`heic-to/next\` entry point, but it also creates its own internal Blob worker. The upstream \`heic-to/csp\` distribution avoids \`unsafe-eval\`, but its default worker module uses document/canvas and is **not the same as** \`heic-to/next\`. We have **not** verified a safe single variant with both desired properties.
 
-## Local build/check instructions (not executed in this session due to package network restriction)
+## Local build/check instructions (CI build passed; this container cannot fetch npm packages directly)
 \`\`\`sh
 cd experiments/heic-poc
 npm install --save-exact
@@ -27,7 +27,7 @@ Then open \`http://localhost:8080\`. Do not access via production origin. A corr
 1. **Vendor dependencies unavailable in this development environment** — cannot run \`npm install\` or perform genuine HEIC conversion now. Build artifact and dependency lockfile missing.
 2. **CSP/worker behavior unresolved** — nested blob workers need an explicitly reviewed \`worker-src\` change, and \`heic-to/next\` may require unsafe-eval. Never weaken production \`script-src\` to accommodate a decoder. Fail closed instead.
 3. **Memory limit not proved** — 10 MiB *compressed file* cap is not an output pixel/memory ceiling. The third-party decoder may allocate before dimensions are checked. The 15-second top-level timeout is best-effort, and independent confirmation of nested worker cleanup is required.
-4. **Genuine HEIC fixture and mobile orientation** absent; need Samsung and iPhone test, original dimension/rotation validation, corrupt HEIC tests, and observed decode speed/battery/memory.
+4. **A synthetic CC0 HEIC fixture passed one browser decode**, but genuine Samsung and iPhone camera HEIC files, original orientation/colour, corrupt HEIC tests, and observed decode speed/battery/memory remain unverified.
 5. **License/legal review** of LGPL-3.0 and nested decoder/codec licenses, appropriate notices and source/offers, and build artifact checksum.
 6. **End-to-end safety**: isolate from live accounts/payment paths; no merge/deployment until safe staging upload/generation tests and explicit approval.
 
