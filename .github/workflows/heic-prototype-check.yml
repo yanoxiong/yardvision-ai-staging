@@ -1,0 +1,32 @@
+name: HEIC decoder prototype compile check
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [feature/mobile-photo-compat-20261102]
+    paths:
+      - "experiments/heic-poc/**"
+      - ".github/workflows/heic-prototype-check.yml"
+permissions:
+  contents: read
+jobs:
+  build-prototype-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    defaults:
+      run:
+        working-directory: experiments/heic-poc
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned prototype dependencies, no package lifecycle scripts
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Run strictly local header checks
+        run: npm test
+      - name: Bundle isolated browser-only worker
+        run: npm run build
+      - name: Report generated worker size only
+        run: ls -lh site/decoder.worker.js
