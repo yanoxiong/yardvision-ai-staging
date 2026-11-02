@@ -13,6 +13,8 @@ function esc(value) {
 let currentUser = null;
 let currentUsage = null;
 let currentFile = null;
+let photoSelectionToken = 0;
+let photoProcessing = false;
 let selectedStyle = '';
 let selectedBudget = 'Just give me ideas';
 let selectedFeatures = [];
@@ -134,15 +136,25 @@ async function checkHealth() {
 }
 
 async function loadDemo() {
-  const response = await fetch('/demo-yard.png');
-  const blob = await response.blob();
-  currentFile = new File([blob], 'demo-yard.png', { type: blob.type || 'image/png' });
-  const url = URL.createObjectURL(blob);
-  beforeUrl = url;
-  $('uploadPreview').src = url;
-  $('uploadPreview').classList.remove('hidden');
-  showView('design');
-  toast('Demo yard loaded');
+  const token = ++photoSelectionToken;
+  photoProcessing = false;
+  $('generateBtn').disabled = false;
+  try {
+    const response = await fetch('/demo-yard.png');
+    if (!response.ok) throw new Error('Demo photo is unavailable.');
+    const blob = await response.blob();
+    if (token !== photoSelectionToken) return;
+    currentFile = new File([blob], 'demo-yard.png', { type: blob.type || 'image/png' });
+    if (beforeUrl.startsWith('blob:')) URL.revokeObjectURL(beforeUrl);
+    beforeUrl = URL.createObjectURL(blob);
+    $('uploadPreview').src = beforeUrl;
+    $('uploadPreview').classList.remove('hidden');
+    $('photoStatus').textContent = 'Demo yard is ready.';
+    showView('design');
+    toast('Demo yard loaded');
+  } catch (err) {
+    if (token === photoSelectionToken) toast(err.message || 'Could not load demo yard');
+  }
 }
 
 function updateSlider() {
@@ -217,18 +229,36 @@ document.querySelectorAll('.auth-tab').forEach(
   b => b.onclick = () => setAuthTab(b.dataset.authTab)
 );
 
-$('yardFile').onchange = () => {
+$('yardFile').onchange = async () => {
   const file = $('yardFile').files?.[0];
   if (!file) return;
-  currentFile = file;
-
-  const reader = new FileReader();
-  reader.onload = e => {
-    beforeUrl = e.target.result;
+  $('yardFile').value = ''; // Allow selecting the same photo again after an error.
+  const token = ++photoSelectionToken;
+  photoProcessing = true;
+  currentFile = null;
+  $('generateBtn').disabled = true;
+  $('uploadPreview').classList.add('hidden');
+  $('photoStatus').textContent = 'Preparing your photo on this device…';
+  try {
+    const prepared = await YardVisionMobilePhoto.prepare(file);
+    if (token !== photoSelectionToken) return;
+    currentFile = prepared.file;
+    if (beforeUrl.startsWith('blob:')) URL.revokeObjectURL(beforeUrl);
+    beforeUrl = URL.createObjectURL(currentFile);
     $('uploadPreview').src = beforeUrl;
     $('uploadPreview').classList.remove('hidden');
-  };
-  reader.readAsDataURL(file);
+    $('photoStatus').textContent = prepared.converted
+      ? 'Photo converted to JPEG and ready to design.'
+      : 'Photo ready to design.';
+  } catch (err) {
+    if (token !== photoSelectionToken) return;
+    $('photoStatus').textContent = err.message || 'Could not open this photo.';
+  } finally {
+    if (token === photoSelectionToken) {
+      photoProcessing = false;
+      $('generateBtn').disabled = false;
+    }
+  }
 };
 
 $('styleGrid').onclick = e => {
@@ -260,7 +290,8 @@ $('generateBtn').onclick = async () => {
     openAuth('login');
     return toast('Sign in before generating a design');
   }
-  if (!currentFile) return toast('Upload a yard photo or load the demo yard');
+  if (photoProcessing) return toast('Please wait for your photo to finish preparing');
+  if (!currentFile) return toast('Choose a supported yard photo or load the demo yard');
   if (!selectedStyle) return toast('Choose a style first');
 
   try {
