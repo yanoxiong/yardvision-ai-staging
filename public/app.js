@@ -137,8 +137,11 @@ async function checkHealth() {
 
 async function loadDemo() {
   const token = ++photoSelectionToken;
-  photoProcessing = false;
-  $('generateBtn').disabled = false;
+  photoProcessing = true;
+  currentFile = null;
+  $('generateBtn').disabled = true;
+  $('uploadPreview').classList.add('hidden');
+  $('photoStatus').textContent = 'Loading demo photo…';
   try {
     const response = await fetch('/demo-yard.png');
     if (!response.ok) throw new Error('Demo photo is unavailable.');
@@ -153,7 +156,15 @@ async function loadDemo() {
     showView('design');
     toast('Demo yard loaded');
   } catch (err) {
-    if (token === photoSelectionToken) toast(err.message || 'Could not load demo yard');
+    if (token === photoSelectionToken) {
+      $('photoStatus').textContent = err.message || 'Could not load demo yard.';
+      toast(err.message || 'Could not load demo yard');
+    }
+  } finally {
+    if (token === photoSelectionToken) {
+      photoProcessing = false;
+      $('generateBtn').disabled = false;
+    }
   }
 }
 
