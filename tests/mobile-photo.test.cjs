@@ -79,6 +79,40 @@ test('rejects images over 40 MP and closes decoder', async () => {
   await assert.rejects(prepare(file('yard.heic', 'image/heic'), env), /40 megapixels/);
   assert.equal(env.state.closed, true);
 });
+test('falls back to browser image decoding and releases object URL', async () => {
+  const env = environment({ decodeFails: true });
+  const revoked = [];
+  env.URL = {
+    createObjectURL: () => 'blob:photo',
+    revokeObjectURL(url) { revoked.push(url); }
+  };
+  env.Image = class {
+    naturalWidth = 3000;
+    naturalHeight = 4000;
+    set src(_value) { queueMicrotask(() => this.onload()); }
+  };
+  const result = await prepare(file('yard.heic', 'image/heic'), env);
+  assert.equal(result.converted, true);
+  assert.equal(result.file.type, 'image/jpeg');
+  assert.equal(env.state.canvasWidth, 1536);
+  assert.equal(env.state.canvasHeight, 2048);
+  assert.deepEqual(revoked, ['blob:photo']);
+});
+
+test('cleans up failed HTMLImageElement decode and explains HEIC fallback', async () => {
+  const env = environment({ decodeFails: true });
+  const revoked = [];
+  env.URL = {
+    createObjectURL: () => 'blob:bad',
+    revokeObjectURL(url) { revoked.push(url); }
+  };
+  env.Image = class {
+    set src(_value) { queueMicrotask(() => this.onerror()); }
+  };
+  await assert.rejects(prepare(file('broken.heic', 'image/heic'), env), /Export or share it as a JPEG/);
+  assert.deepEqual(revoked, ['blob:bad']);
+});
+
 test('HEIC decode failure explains JPEG alternative', async () => {
   const env = environment({ decodeFails: true });
   await assert.rejects(prepare(file('yard.heic', 'image/heic'), env), /Export or share it as a JPEG/);
