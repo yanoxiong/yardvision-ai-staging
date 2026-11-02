@@ -72,7 +72,8 @@
       <div class="grid">
         <div class="card controls">
           <label>Yard Photo</label>
-          <input id="yardFile" type="file" accept="image/jpeg,image/png,image/webp" />
+          <input id="yardFile" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif" />
+          <p id="photoStatus" class="muted" aria-live="polite">JPG, PNG, WebP and browser-readable HEIC/HEIF. Some phones may require exporting HEIC as JPG.</p>
           <button class="secondary full" id="designDemoBtn">Load Demo Yard</button>
           <img id="uploadPreview" class="preview hidden" alt="Yard preview" />
 
@@ -279,7 +280,8 @@
   </div>
 
   <div id="toast" class="toast"></div>
-  <script src="/app.js?v=ef27c78"></script>
+  <script src="/mobile-photo.js?v=20261102"></script>
+  <script src="/app.js?v=20261102"></script>
 
 <footer class="site-footer" style="text-align:center;padding:28px 16px 36px;">
   <a href="/terms.html">Terms</a>
