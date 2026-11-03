@@ -5,6 +5,9 @@ on:
     branches: [feature/mobile-photo-compat-20261102]
     paths:
       - "experiments/heic-poc/**"
+      - "public/**"
+      - "tests/**"
+      - "server.js"
       - ".github/workflows/heic-prototype-check.yml"
 permissions:
   contents: read
@@ -37,3 +40,22 @@ jobs:
           CHROME_BIN="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium)"
           export CHROME_BIN
           timeout 50 node tests/browser-smoke.mjs
+      - name: Test YardVision browser photo helpers on Node 22
+        run: node --test ../../tests/mobile-photo.test.cjs ../../tests/heic-decode.test.cjs
+      - name: Check YardVision modified script syntax
+        run: |
+          node --check ../../public/mobile-photo.js
+          node --check ../../public/heic-probe.js
+          node --check ../../public/heic-decode.js
+          node --check ../../public/app.js
+          node --check ../../server.js
+      - name: Build same-origin YardVision HEIC worker for smoke tests
+        run: |
+          node build.mjs --app
+          test -s ../../public/assets/heic-decoder.worker.js
+          ls -lh ../../public/assets/heic-decoder.worker.js
+      - name: Test actual YardVision browser picker with genuine HEIC and JPG PNG regression
+        run: |
+          CHROME_BIN="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium)"
+          export CHROME_BIN
+          timeout 55 node tests/app-integration-smoke.mjs
