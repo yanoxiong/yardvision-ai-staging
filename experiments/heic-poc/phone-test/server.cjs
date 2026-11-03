@@ -49,7 +49,12 @@ http.createServer((req, res) => {
     res.writeHead(200, {
       'Content-Type': mime[path.extname(file)] || 'application/octet-stream',
       'Content-Length': stat.size,
-      'Content-Security-Policy': csp,
+      // LOCAL EVALUATION ONLY: heic-to/next still requires JavaScript eval inside
+      // its own decoding worker. Scope the exception to this one worker response,
+      // never the main page and NEVER YardVision's hosted production CSP.
+      'Content-Security-Policy': target === '/assets/heic-decoder.worker.js'
+        ? csp.replace("script-src 'self' 'wasm-unsafe-eval'", "script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval'")
+        : csp,
       'Cache-Control': 'no-store',
       'X-Content-Type-Options': 'nosniff',
       'Referrer-Policy': 'no-referrer',
