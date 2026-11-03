@@ -80,4 +80,6 @@ const YardVisionHeicDecoder = (() => {
   return Object.freeze({ decode, MAX_HEIC_BYTES, TIMEOUT_MS });
 })();
 
+// Explicit global binding is required: top-level const is not a window property.
+if (typeof globalThis !== 'undefined') globalThis.YardVisionHeicDecoder = YardVisionHeicDecoder;
 if (typeof module !== 'undefined' && module.exports) module.exports = YardVisionHeicDecoder;
