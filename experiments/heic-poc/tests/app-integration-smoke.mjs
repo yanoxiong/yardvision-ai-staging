@@ -46,7 +46,7 @@ try {
   async function waitForStatus() {
     await page.waitForFunction(() => {
       const s = document.getElementById('photoStatus').textContent;
-      return /ready to design|could not|unavailable|not recognized|invalid|unsupported|too large|canceled|please use JPG/i.test(s);
+      return /ready to design|could not|unavailable|not (?:a )?recognized|invalid|unsupported|too large|canceled|please use JPG/i.test(s);
     }, { timeout: 27000 });
     return page.evaluate(async () => {
       const preview = document.getElementById('uploadPreview');
@@ -122,7 +122,7 @@ try {
     input.dispatchEvent(new Event('change', { bubbles:true }));
   });
   const bad=await waitForStatus();
-  if (bad.type !== null || !bad.previewHidden || !/not recognized|invalid|unsupported/i.test(bad.status)) {
+  if (bad.type !== null || !bad.previewHidden || !/not (?:a )?recognized|invalid|unsupported/i.test(bad.status)) {
     throw new Error('Corrupt HEIC failure path did not fail closed: '+JSON.stringify(bad));
   }
   console.log('YardVision corrupt HEIC rejection PASS');
