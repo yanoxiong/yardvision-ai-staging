@@ -13,7 +13,8 @@ self.onmessage = async ({ data }) => {
       throw new Error('Decoded image is invalid or too large.');
     }
     self.postMessage({ id, ok: true, jpeg });
-  } catch (_err) {
-    self.postMessage({ id, ok: false, error: 'HEIC decoding failed on this device.' });
+  } catch (err) {
+    self.postMessage({ id, ok: false, error: 'HEIC decoding failed on this device.',
+      diagnostic: String(err?.message || err || 'unknown decoder error').slice(0, 180) });
   }
 };
