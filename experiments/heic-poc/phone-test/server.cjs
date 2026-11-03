@@ -22,7 +22,7 @@ const mime = {
 };
 const csp = [
   "default-src 'none'",
-  "script-src 'self'",
+  "script-src 'self' 'wasm-unsafe-eval'",
   "worker-src 'self' blob:",
   "img-src 'self' blob: data:",
   "style-src 'self'",
