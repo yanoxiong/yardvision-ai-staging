@@ -15,6 +15,7 @@ let currentUsage = null;
 let currentFile = null;
 let photoSelectionToken = 0;
 let photoProcessing = false;
+let photoAbortController = null;
 let selectedStyle = '';
 let selectedBudget = 'Just give me ideas';
 let selectedFeatures = [];
@@ -137,6 +138,8 @@ async function checkHealth() {
 
 async function loadDemo() {
   const token = ++photoSelectionToken;
+  if (photoAbortController) photoAbortController.abort();
+  photoAbortController = null;
   photoProcessing = true;
   currentFile = null;
   $('generateBtn').disabled = true;
@@ -245,13 +248,16 @@ $('yardFile').onchange = async () => {
   if (!file) return;
   $('yardFile').value = ''; // Allow selecting the same photo again after an error.
   const token = ++photoSelectionToken;
+  if (photoAbortController) photoAbortController.abort();
+  const controller = new AbortController();
+  photoAbortController = controller;
   photoProcessing = true;
   currentFile = null;
   $('generateBtn').disabled = true;
   $('uploadPreview').classList.add('hidden');
   $('photoStatus').textContent = 'Preparing your photo on this device…';
   try {
-    const prepared = await YardVisionMobilePhoto.prepare(file);
+    const prepared = await YardVisionMobilePhoto.prepare(file, globalThis, { signal: controller.signal });
     if (token !== photoSelectionToken) return;
     currentFile = prepared.file;
     if (beforeUrl.startsWith('blob:')) URL.revokeObjectURL(beforeUrl);
@@ -266,6 +272,7 @@ $('yardFile').onchange = async () => {
     $('photoStatus').textContent = err.message || 'Could not open this photo.';
   } finally {
     if (token === photoSelectionToken) {
+      photoAbortController = null;
       photoProcessing = false;
       $('generateBtn').disabled = false;
     }
