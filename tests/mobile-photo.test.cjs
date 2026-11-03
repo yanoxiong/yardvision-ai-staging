@@ -116,7 +116,7 @@ test('cleans up failed HTMLImageElement decode and explains HEIC fallback', asyn
   env.Image = class {
     set src(_value) { queueMicrotask(() => this.onerror()); }
   };
-  await assert.rejects(prepare(file('broken.heic', 'image/heic'), env), /Export or share it as a JPEG/);
+  await assert.rejects(prepare(file('broken.heic', 'image/heic'), env), /This photo could not be opened/);
   assert.deepEqual(revoked, ['blob:bad']);
 });
 
