@@ -59,3 +59,17 @@ jobs:
           CHROME_BIN="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium)"
           export CHROME_BIN
           timeout 55 node tests/app-integration-smoke.mjs
+      - name: Assemble private local S25 phone test (no production assets)
+        run: node prepare-phone-package.mjs
+      - name: Validate actual downloadable phone test in Chromium
+        run: |
+          CHROME_BIN="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium)"
+          export CHROME_BIN
+          timeout 55 node tests/phone-package-smoke.mjs
+      - name: Save phone test package for manual local LAN testing
+        uses: actions/upload-artifact@v4
+        with:
+          name: yardvision-s25-heic-local-test
+          path: experiments/heic-poc/phone-test-dist/
+          if-no-files-found: error
+          retention-days: 7
