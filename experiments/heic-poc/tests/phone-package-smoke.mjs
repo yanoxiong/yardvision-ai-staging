@@ -17,7 +17,7 @@ try {
     headless:true, args:['--no-sandbox','--disable-gpu','--disable-dev-shm-usage']
   });
   const page=await browser.newPage();
-  const faults=[], outbound=[];
+  const faults=[], outbound=[], diagnostics=[];
   await page.setRequestInterception(true);
   page.on('request',request=>{
     const url=request.url();
@@ -27,6 +27,7 @@ try {
   });
   page.on('pageerror',err=>faults.push(err.message));
   page.on('console',msg=>{
+    if(msg.text().includes('HEIC local diagnostic:')) diagnostics.push(msg.text());
     if(msg.type()==='error'&&/content security policy|refused to|uncaught/i.test(msg.text()))
       faults.push(msg.text());
   });
@@ -60,7 +61,7 @@ try {
   await page.waitForFunction(()=>['pass','fail'].includes(document.getElementById('status').dataset.result),{timeout:28000});
   const heic=await result();
   if(heic.flag!=='pass'||heic.previewHidden||heic.width!==640||heic.height!==480||heic.saveHidden)
-    throw new Error('Phone test genuine HEIC failed: '+JSON.stringify(heic));
+    throw new Error('Phone test genuine HEIC failed: '+JSON.stringify({heic,diagnostics,faults,outbound}));
   console.log('Phone ZIP actual HEIC decode PASS:',JSON.stringify(heic));
 
   await page.evaluate(async()=>{
