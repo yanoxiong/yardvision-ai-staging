@@ -103,6 +103,41 @@ try {
   }
   console.log('YardVision real HEIC -> JPEG integration PASS:',JSON.stringify(heic));
 
+  // Never contact a production backend; intercept exactly the existing /api/design
+  // route and prove its multipart FormData carries the prepared JPEG bytes.
+  await page.evaluate(() => {
+    const originalFetch = window.fetch;
+    window.fetch = async (url, options = {}) => {
+      if (url === '/api/design') {
+        const payload = options.body;
+        const photo = payload?.get('yardImage');
+        window.__ciSubmission = {
+          method: options.method,
+          type: photo?.type,
+          filename: photo?.name,
+          signature: photo ? [...new Uint8Array(await photo.slice(0, 3).arrayBuffer())] : [],
+          selectedStyle: payload?.get('style')
+        };
+        return new Response(JSON.stringify({
+          ok: true, results: [], landscapePlan: [], usage: null, estimateRange: 'CI TEST ONLY'
+        }), { status: 200, headers: { 'content-type': 'application/json' } });
+      }
+      return originalFetch(url, options);
+    };
+    currentUser = { id: 999, name: 'CI Mock User', plan: 'free', emailVerified: true };
+    selectedStyle = 'Modern';
+    document.getElementById('generateBtn').click();
+  });
+  await page.waitForFunction(() => !!window.__ciSubmission, { timeout: 6000 });
+  const submitted = await page.evaluate(() => window.__ciSubmission);
+  if (submitted.method !== 'POST' || submitted.type !== 'image/jpeg' ||
+      submitted.filename !== 'yard-photo.jpg' ||
+      JSON.stringify(submitted.signature) !== '[255,216,255]' ||
+      submitted.selectedStyle !== 'Modern') {
+    throw new Error('Prepared JPEG did not reach existing design form: '+JSON.stringify(submitted));
+  }
+  console.log('YardVision existing design FormData mock submit PASS:', JSON.stringify(submitted));
+
   for (const type of ['image/png','image/jpeg']) {
     await chooseCanvas(type);
     const result=await waitForStatus();
