@@ -31,6 +31,7 @@ Do not configure router port forwarding or expose this test over the internet.
 
 ## Safety / acceptance limitations
 
+- **Important local-only security exception:** this prototype allows JavaScript `unsafe-eval` **only on the decoding worker script's CSP response**, because the proven `heic-to/next` build needs it. The main test page has no such permission. **This is NOT production CSP acceptance and must not be copied to Render/YardVision**. A production-grade CSP-safe decoder remains a release blocker.
 - The decoder is a library-based proof of concept. Nested worker cleanup,
   compressed-pixel memory bounds, and mobile browser resource limits have not
   been fully independently verified. If the phone gets hot or Chrome becomes
