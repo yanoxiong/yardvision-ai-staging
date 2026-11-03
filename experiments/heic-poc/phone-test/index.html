@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#183d31">
+<title>YardVision — S25 HEIC Integration Test</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<main>
+  <header>
+    <div class="eyebrow">YARDVISION AI · LOCAL TEST ONLY</div>
+    <h1>Mobile Photo Compatibility</h1>
+    <p>Test the <strong>actual YardVision development photo code</strong> on your phone. Your picture is processed locally in Chrome. It is never uploaded to YardVision, GitHub, or this test server.</p>
+  </header>
+  <section class="panel">
+    <label for="yardFile">Choose a HEIC or regular yard photo</label>
+    <input id="yardFile" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif">
+    <div id="status" role="status" aria-live="polite">Choose a photo to begin.</div>
+    <div id="details"></div>
+    <img id="preview" alt="Locally processed yard photo preview" hidden>
+    <a id="save" class="download" hidden>Save processed photo</a>
+  </section>
+  <section class="notice">
+    <strong>Development build — not the live website.</strong>
+    This test does not generate AI designs, sign into accounts, contact payment systems, or upload photos. The test server temporarily permits dynamic code evaluation <strong>inside its isolated decoder worker only</strong>; that exception is <strong>not allowed for production</strong>.
+    Please use an ordinary non-sensitive photo. If your phone gets hot or Chrome slows down, close this tab.
+  </section>
+  <footer>Send back the PASS/FAIL message and whether the preview looks upright. No need to share the photo itself.</footer>
+</main>
+<script src="/heic-probe.js"></script>
+<script src="/heic-decode.js"></script>
+<script src="/mobile-photo.js"></script>
+<script src="/phone.js"></script>
+</body>
+</html>

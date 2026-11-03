@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; worker-src 'self' blob:; img-src 'self' blob:; style-src 'unsafe-inline'; connect-src 'none'; base-uri 'none'; form-action 'none'">
+<title>YardVision — HEIC Decoder Laboratory (Not Production)</title>
+<style>
+body{font:16px system-ui,sans-serif;background:#eff5f0;color:#173a2b;margin:0;padding:18px}
+main{max-width:600px;margin:auto;background:white;border-radius:16px;padding:20px}
+input{max-width:100%;padding:15px 0}img{width:100%;height:auto;max-height:480px;object-fit:contain}
+#status{padding:14px;border-radius:8px;background:#eaeaea}#status[data-result=ok]{background:#dcf6e8}
+a{display:inline-block;margin:10px 0;padding:12px;background:#176849;color:white;border-radius:8px}
+small{display:block;color:#52665c;line-height:1.5}
+</style></head><body><main>
+<h1>YardVision — HEIC Decoder Lab</h1>
+<p><strong>Experimental and offline processing.</strong> This page does not use YardVision's live website, accounts, AI, or payments. It makes no upload requests.</p>
+<label for="file">Choose a genuine HEIC/HEIF photo</label>
+<input id="file" type="file" accept="image/heic,image/heif,.heic,.heif">
+<div id="status" role="status" aria-live="polite">Choose a photo to test.</div>
+<img id="preview" alt="Converted photo preview" hidden>
+<a id="download" hidden>Save converted JPEG</a>
+<small>Prototype only. Decoder capped at 10MB input, 15s timeout; decoded pixel-memory limits and internal nested-worker termination remain unverified. No production deployment authorization. Best tested over localhost HTTPS/HTTP; opening as a file may block module workers.</small>
+</main><script src="./probe.js"></script><script type="module" src="./app.mjs"></script></body></html>

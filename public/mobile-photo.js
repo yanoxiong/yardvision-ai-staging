@@ -62,7 +62,7 @@ const YardVisionMobilePhoto = (() => {
     }
   }
 
-  async function prepare(file, env = globalThis) {
+  async function prepare(file, env = globalThis, options = {}) {
     if (!file || !Number.isFinite(file.size) || file.size <= 0) {
       throw new Error('Choose a nonempty yard photo.');
     }
@@ -78,7 +78,23 @@ const YardVisionMobilePhoto = (() => {
       return { file, converted: false };
     }
 
-    const decoded = await decodeForCanvas(file, env, kind);
+    let imageToNormalize = file;
+    if (kind === 'heic') {
+      const converter = env.YardVisionHeicDecoder;
+      if (!converter || typeof converter.decode !== 'function') {
+        throw new Error('HEIC conversion is unavailable here. Please share this photo as JPG.');
+      }
+      // Only the worker-decoded JPEG reaches our existing canvas normalization.
+      const jpeg = await converter.decode(file, { signal: options.signal, env });
+      if (options.signal?.aborted) throw new Error('Photo selection canceled.');
+      if (!jpeg || jpeg.type !== 'image/jpeg' || jpeg.size < 1 ||
+          jpeg.size > SERVER_MAX_BYTES) {
+        throw new Error('HEIC conversion returned an invalid JPEG. Please try JPG.');
+      }
+      imageToNormalize = new env.File([jpeg], 'heic-converted.jpg', { type: 'image/jpeg' });
+    }
+
+    const decoded = await decodeForCanvas(imageToNormalize, env, kind === 'heic' ? 'native' : kind);
     try {
       const width = decoded.width;
       const height = decoded.height;

@@ -1,0 +1,75 @@
+name: HEIC decoder prototype compile check
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [feature/mobile-photo-compat-20261102]
+    paths:
+      - "experiments/heic-poc/**"
+      - "public/**"
+      - "tests/**"
+      - "server.js"
+      - ".github/workflows/heic-prototype-check.yml"
+permissions:
+  contents: read
+jobs:
+  build-prototype-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    defaults:
+      run:
+        working-directory: experiments/heic-poc
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned prototype dependencies, no package lifecycle scripts
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Run strictly local header checks
+        run: npm test
+      - name: Bundle isolated browser-only worker
+        run: npm run build
+      - name: Report generated worker size only
+        run: ls -lh site/decoder.worker.js
+      - name: Decode genuine CC0 HEIC in headless Chrome under strict CSP
+        run: |
+          curl --fail --location --silent --show-error --max-time 30 https://loremfile.dev/heic/640x480.heic --output site/sample.heic
+          test "$(wc -c < site/sample.heic)" -eq 5066
+          CHROME_BIN="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium)"
+          export CHROME_BIN
+          timeout 50 node tests/browser-smoke.mjs
+      - name: Test YardVision browser photo helpers on Node 22
+        run: node --test ../../tests/mobile-photo.test.cjs ../../tests/heic-decode.test.cjs
+      - name: Check YardVision modified script syntax
+        run: |
+          node --check ../../public/mobile-photo.js
+          node --check ../../public/heic-probe.js
+          node --check ../../public/heic-decode.js
+          node --check ../../public/app.js
+          node --check ../../server.js
+      - name: Build same-origin YardVision HEIC worker for smoke tests
+        run: |
+          node build.mjs --app
+          test -s ../../public/assets/heic-decoder.worker.js
+          ls -lh ../../public/assets/heic-decoder.worker.js
+      - name: Test actual YardVision browser picker with genuine HEIC and JPG PNG regression
+        run: |
+          CHROME_BIN="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium)"
+          export CHROME_BIN
+          timeout 55 node tests/app-integration-smoke.mjs
+      - name: Assemble private local S25 phone test (no production assets)
+        run: node prepare-phone-package.mjs
+      - name: Validate actual downloadable phone test in Chromium
+        run: |
+          CHROME_BIN="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium)"
+          export CHROME_BIN
+          timeout 55 node tests/phone-package-smoke.mjs
+      - name: Save phone test package for manual local LAN testing
+        uses: actions/upload-artifact@v4
+        with:
+          name: yardvision-s25-heic-local-test
+          path: experiments/heic-poc/phone-test-dist/
+          if-no-files-found: error
+          retention-days: 7

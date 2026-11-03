@@ -1,0 +1,16 @@
+:root{color-scheme:light;font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#edf4f0;color:#143126}
+*{box-sizing:border-box}body{margin:0}main{max-width:620px;margin:0 auto;padding:20px 14px 36px}
+header,.panel,.notice{border-radius:14px;padding:20px;background:white;box-shadow:0 1px 7px #153b2920;margin-bottom:14px}
+h1{font-size:1.65rem;line-height:1.18;margin:8px 0}p,footer{line-height:1.55;font-size:.94rem;color:#44584f}
+.eyebrow{font-size:.72rem;font-weight:800;letter-spacing:.12em;color:#22654b}
+label{display:block;font-weight:750;margin-bottom:10px}
+input{font-size:1rem;display:block;width:100%;margin:0 0 16px}
+#status{border-radius:8px;background:#edf1ed;padding:13px;font-weight:650;line-height:1.4}
+#status[data-result=pass]{background:#d5f2dd;color:#11502b}
+#status[data-result=fail]{background:#fff0d5;color:#795018}
+#details{margin:12px 0;white-space:pre-line;font-size:.9rem;line-height:1.7}
+#preview{display:block;width:100%;height:auto;max-height:520px;object-fit:contain;border-radius:8px}
+#preview[hidden],#save[hidden]{display:none}
+.download{display:block;margin-top:14px;text-align:center;padding:13px;background:#196345;color:white;border-radius:10px;text-decoration:none;font-weight:700}
+.notice{font-size:.9rem;line-height:1.6;background:#fefbea}
+footer{padding:0 10px}

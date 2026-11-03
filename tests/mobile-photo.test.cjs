@@ -8,11 +8,18 @@ function environment({ width = 4032, height = 3024, outputSize = 200000, decodeF
   let canvasWidth = 0;
   let canvasHeight = 0;
   let drew = false;
+  let heicDecodeCount = 0;
   class FileStub {
     constructor(parts, name, opts) { this.size = parts[0].size; this.name = name; this.type = opts.type; }
   }
   return {
     File: FileStub,
+    YardVisionHeicDecoder: {
+      async decode() {
+        heicDecodeCount++;
+        return { type: 'image/jpeg', size: 120000 };
+      }
+    },
     createImageBitmap: async () => {
       if (decodeFails) throw new Error('Unsupported image');
       return { width, height, close() { closed = true; } };
@@ -30,7 +37,7 @@ function environment({ width = 4032, height = 3024, outputSize = 200000, decodeF
         };
       }
     },
-    get state() { return { closed, canvasWidth, canvasHeight, drew }; }
+    get state() { return { closed, canvasWidth, canvasHeight, drew, heicDecodeCount }; }
   };
 }
 
@@ -60,7 +67,7 @@ test('converts browser-decodable HEIC to bounded JPEG with correct proportions',
   assert.equal(result.file.type, 'image/jpeg');
   assert.equal(result.file.name, 'yard-photo.jpg');
   assert.ok(result.file.size <= SERVER_MAX_BYTES);
-  assert.deepEqual(env.state, { closed: true, canvasWidth: 2048, canvasHeight: 1536, drew: true });
+  assert.deepEqual(env.state, { closed: true, canvasWidth: 2048, canvasHeight: 1536, drew: true, heicDecodeCount: 1 });
 });
 test('normalizes oversized native images without changing original upload limit', async () => {
   const env = environment({ width: 900, height: 1600 });
@@ -109,13 +116,29 @@ test('cleans up failed HTMLImageElement decode and explains HEIC fallback', asyn
   env.Image = class {
     set src(_value) { queueMicrotask(() => this.onerror()); }
   };
-  await assert.rejects(prepare(file('broken.heic', 'image/heic'), env), /Export or share it as a JPEG/);
+  await assert.rejects(prepare(file('broken.heic', 'image/heic'), env), /This photo could not be opened/);
   assert.deepEqual(revoked, ['blob:bad']);
 });
 
-test('HEIC decode failure explains JPEG alternative', async () => {
-  const env = environment({ decodeFails: true });
-  await assert.rejects(prepare(file('yard.heic', 'image/heic'), env), /Export or share it as a JPEG/);
+test('missing HEIC converter fails closed before image decoding', async () => {
+  const env = environment();
+  delete env.YardVisionHeicDecoder;
+  await assert.rejects(prepare(file('yard.heic', 'image/heic'), env), /HEIC conversion is unavailable/);
+});
+test('failed HEIC worker does not silently use native decoder', async () => {
+  const env = environment();
+  env.YardVisionHeicDecoder.decode = async () => { throw Error('HEIC decode rejected'); };
+  await assert.rejects(prepare(file('yard.heic', 'image/heic'), env), /HEIC decode rejected/);
+});
+test('HEIC worker conversion honors canceled selection before canvas', async () => {
+  const env = environment();
+  const controller = new AbortController();
+  env.YardVisionHeicDecoder.decode = async () => {
+    controller.abort();
+    return { type: 'image/jpeg', size: 120000 };
+  };
+  await assert.rejects(prepare(file('yard.heic', 'image/heic'), env, {signal:controller.signal}), /canceled/);
+  assert.equal(env.state.drew, false);
 });
 test('rejects blank or oversize JPEG output and cleans up', async () => {
   for (const outputSize of [0, SERVER_MAX_BYTES + 1]) {
