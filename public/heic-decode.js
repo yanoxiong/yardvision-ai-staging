@@ -56,6 +56,10 @@ const YardVisionHeicDecoder = (() => {
         const message = event.data;
         if (!message || message.id !== 1) return;
         if (!message.ok) {
+          // Diagnostic text is never shown to a customer; only local debug origins log it.
+          if (['127.0.0.1', 'localhost'].includes(env.location?.hostname)) {
+            env.console?.warn?.('HEIC local diagnostic:', message.diagnostic || 'not supplied');
+          }
           return finish(new Error('Unable to convert this HEIC photo. Please use JPG.'));
         }
         const jpeg = message.jpeg;
