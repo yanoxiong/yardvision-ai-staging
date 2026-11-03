@@ -40,6 +40,11 @@ app.use(helmet({
           defaultSrc: ["'self'"],
           baseUri: ["'self'"],
           scriptSrc: ["'self'"],
+          // Nested Blob workers are allowed only when separately enabled for the HEIC beta.
+          // No unsafe-eval or third-party script origins are added.
+          ...(process.env.HEIC_BROWSER_DECODER_ENABLED === 'true'
+            ? { workerSrc: ["'self'", 'blob:'] }
+            : {}),
           styleSrc: ["'self'"],
           styleSrcAttr: ["'unsafe-inline'"],
           imgSrc: imageSources,
