@@ -1,5 +1,5 @@
 /* Experiment only. HEIC decoder dependency bundled locally by esbuild. */
-import { heicTo } from 'heic-to/next';
+import { heicTo } from 'heic-to/csp';
 
 self.onmessage = async ({ data }) => {
   if (!data || data.op !== 'decode' || !data.blob) return;
