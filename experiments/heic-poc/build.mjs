@@ -1,7 +1,9 @@
 import { build } from 'esbuild';
 await build({
   entryPoints: ['src/decoder.worker.mjs'],
-  outfile: 'site/decoder.worker.js',
+  outfile: process.argv.includes('--app')
+    ? '../../public/assets/heic-decoder.worker.js'
+    : 'site/decoder.worker.js',
   bundle: true,
   platform: 'browser',
   format: 'esm',
@@ -10,4 +12,4 @@ await build({
   minify: false,
   logLevel: 'info'
 });
-console.log('Prototype worker built locally. Do not distribute or deploy without license/security review.');
+console.log('Decoder bundle built for isolated testing. Do not deploy without license/security review.');
