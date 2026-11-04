@@ -1,0 +1,75 @@
+name: YardVision HTTPS HEIC photo test — staging ONLY
+on:
+  push:
+    branches:
+      - staging/https-heic-photo-preview-20261104
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: yardvision-heic-staging-pages
+  cancel-in-progress: true
+jobs:
+  verify-and-package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    defaults:
+      run:
+        working-directory: experiments/heic-poc
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned test decoder packages without lifecycle scripts
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Run pure format and worker tests
+        run: |
+          npm test
+          node --test ../../tests/mobile-photo.test.cjs ../../tests/heic-decode.test.cjs
+      - name: Build same-origin HEIC decoder worker
+        run: |
+          node build.mjs --app
+          test -s ../../public/assets/heic-decoder.worker.js
+      - name: Download known public sample HEIC for browser tests
+        run: |
+          curl --fail --location --silent --show-error --max-time 30 https://loremfile.dev/heic/640x480.heic -o site/sample.heic
+          test "$(wc -c < site/sample.heic)" -eq 5066
+      - name: Reconfirm full YardVision development picker
+        run: |
+          CHROME_BIN="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium)"
+          export CHROME_BIN
+          timeout 55 node tests/app-integration-smoke.mjs
+      - name: Assemble separate no-account test and Pages preview
+        run: |
+          node prepare-phone-package.mjs
+          node prepare-https-preview.mjs
+          test -s https-preview-dist/assets/heic-decoder.worker.js
+          test -s https-preview-dist/HEIC-TO-LICENSE.txt
+      - name: Test exact Pages files under repo subpath with browser CSP
+        run: |
+          CHROME_BIN="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium)"
+          export CHROME_BIN
+          timeout 55 node tests/https-preview-smoke.mjs
+      - name: Upload isolated Pages output
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: experiments/heic-poc/https-preview-dist/
+  deploy-staging-pages:
+    # Staging is public, read-only, has no auth, payments, APIs or customer data.
+    # This job cannot succeed until repository Settings > Pages > Source = GitHub Actions.
+    needs: verify-and-package
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy isolated HEIC photo-only preview (never Render)
+        id: deployment
+        uses: actions/deploy-pages@v4
