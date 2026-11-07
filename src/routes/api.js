@@ -475,7 +475,10 @@ router.post('/auth/reset-password', async (req, res) => {
   res.json({ ok: true });
 });
 
-router.get('/media/:token', requireAuth, async (req, res) => {
+router.get('/media/:token', (req, res, next) => {
+  res.set('Cache-Control', 'private, no-store');
+  next();
+}, requireAuth, async (req, res) => {
   try {
     const key = Buffer.from(String(req.params.token || ''), 'base64url').toString('utf8');
     const expires = Number(req.query.expires);
@@ -487,7 +490,7 @@ router.get('/media/:token', requireAuth, async (req, res) => {
 
     const object = await readObject(key);
     res.set('Content-Type', object.contentType || 'application/octet-stream');
-    res.set('Cache-Control', 'private, max-age=300');
+
     res.set('X-Content-Type-Options', 'nosniff');
     res.send(object.buffer);
   } catch (err) {
