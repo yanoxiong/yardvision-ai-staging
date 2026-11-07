@@ -21,6 +21,27 @@ let results = [];
 let activeResult = 0;
 let lastResponse = null;
 let resetTokenFromUrl = null;
+let resultSessionEpoch = 0;
+
+function clearSessionResults() {
+  resultSessionEpoch++;
+  results = [];
+  lastResponse = null;
+  activeResult = 0;
+  currentFile = null;
+  if (beforeUrl.startsWith('blob:')) URL.revokeObjectURL(beforeUrl);
+  beforeUrl = '';
+  $('yardFile').value = '';
+  for (const id of ['beforeImg', 'afterImg', 'uploadPreview']) $(id).removeAttribute('src');
+  $('uploadPreview').classList.add('hidden');
+  $('variationTabs').replaceChildren();
+  $('resultEmpty').classList.remove('hidden');
+  $('estimateText').textContent = '—';
+  renderPlan([]);
+  $('saveProjectBtn').disabled = true;
+  $('downloadBtn').disabled = true;
+  setLoading(false);
+}
 
 function toast(msg) {
   const t = $('toast');
@@ -223,7 +244,9 @@ $('yardFile').onchange = () => {
   currentFile = file;
 
   const reader = new FileReader();
+  const epoch = resultSessionEpoch;
   reader.onload = e => {
+    if (epoch !== resultSessionEpoch) return;
     beforeUrl = e.target.result;
     $('uploadPreview').src = beforeUrl;
     $('uploadPreview').classList.remove('hidden');
@@ -262,6 +285,7 @@ $('generateBtn').onclick = async () => {
   }
   if (!currentFile) return toast('Upload a yard photo or load the demo yard');
   if (!selectedStyle) return toast('Choose a style first');
+  const epoch = resultSessionEpoch;
 
   try {
     setLoading(true);
@@ -275,6 +299,7 @@ $('generateBtn').onclick = async () => {
 
     const d = await api('/api/design', { method: 'POST', body: form });
 
+    if (epoch !== resultSessionEpoch) return;
     lastResponse = d;
     results = d.results || [];
     activeResult = 0;
@@ -295,6 +320,7 @@ $('generateBtn').onclick = async () => {
 
     toast(d.warning || 'Landscape generated');
   } catch (err) {
+    if (epoch !== resultSessionEpoch) return;
     if (err.code === 'AUTH_REQUIRED') openAuth('login');
     if (err.code === 'EMAIL_VERIFICATION_REQUIRED') {
       showView('account');
@@ -306,7 +332,7 @@ $('generateBtn').onclick = async () => {
       alert('YardVision error:\n\n' + (err.message || 'Unknown error'));
     }
   } finally {
-    setLoading(false);
+    if (epoch === resultSessionEpoch) setLoading(false);
   }
 };
 
@@ -338,15 +364,66 @@ $('saveProjectBtn').onclick = async () => {
   }
 };
 
-$('downloadBtn').onclick = () => {
-  if (!results.length) return;
-  const a = document.createElement('a');
-  a.href = results[activeResult].url;
-  a.download = `yardvision-result-${activeResult + 1}.jpg`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-};
+$('downloadBtn').onclick = (() => {
+  let pending = false;
+  return async () => {
+    if (pending || $('downloadBtn').disabled || !results.length) return;
+    // Bind bytes, URL and filename to the same result before any asynchronous work.
+    const epoch = resultSessionEpoch;
+    const index = activeResult;
+    const resultUrl = results[index]?.url;
+    pending = true;
+    $('downloadBtn').disabled = true;
+    let objectUrl = null, anchor = null, clicked = false;
+    try {
+      if (typeof resultUrl !== 'string' || !resultUrl) throw new Error('Reopen the saved design to refresh its private image link.');
+      const url = new URL(resultUrl, location.href);
+      if (!['https:', 'http:'].includes(url.protocol) || url.origin !== location.origin ||
+          url.username || url.password || !url.pathname.startsWith('/api/media/')) {
+        throw new Error('Reopen the saved design to refresh its private image link.');
+      }
+      const response = await fetch(url.href, {credentials:'same-origin', redirect:'error', cache:'no-store'});
+      if (epoch !== resultSessionEpoch) return;
+      if (!response.ok) throw new Error(response.status === 401 || response.status === 403
+        ? 'This image link has expired or access was denied. Reopen the saved design and sign in if needed.'
+        : 'Image download failed. Reopen the saved design to refresh its link.');
+      const blob = await response.blob();
+      if (epoch !== resultSessionEpoch) return;
+      const mime = blob.type.split(';', 1)[0].trim().toLowerCase();
+      const extension = mime === 'image/jpeg' ? 'jpg' : mime === 'image/png' ? 'png' : mime === 'image/webp' ? 'webp' : null;
+      if (!extension || !blob.size) throw new Error('The download did not contain a supported image.');
+      const header = new Uint8Array(await blob.slice(0, 12).arrayBuffer());
+      if (epoch !== resultSessionEpoch) return;
+      const matches = mime === 'image/jpeg'
+        ? header.length >= 3 && header[0] === 255 && header[1] === 216 && header[2] === 255
+        : mime === 'image/png'
+          ? [137,80,78,71,13,10,26,10].every((value, i) => header[i] === value)
+          : header.length >= 12 && [82,73,70,70].every((value, i) => header[i] === value) &&
+            [87,69,66,80].every((value, i) => header[i + 8] === value);
+      if (!matches) throw new Error('The download content did not match its image type.');
+      objectUrl = URL.createObjectURL(blob);
+      anchor = document.createElement('a');
+      anchor.href = objectUrl;
+      anchor.download = `yardvision-result-${index + 1}.${extension}`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      clicked = true;
+    } catch {
+      // Do not expose server bodies, signed URLs or arbitrary transport errors.
+      if (epoch === resultSessionEpoch) toast('Image download failed. Reopen the saved design to refresh its link, and sign in if needed. Use a JPG, PNG or WebP result.');
+    } finally {
+      anchor?.remove();
+      if (objectUrl) {
+        const ownedUrl = objectUrl;
+        // Browsers expose no anchor-download completion event. Allow retrieval time.
+        if (clicked) setTimeout(() => URL.revokeObjectURL(ownedUrl), 60_000);
+        else URL.revokeObjectURL(ownedUrl);
+      }
+      pending = false;
+      $('downloadBtn').disabled = !results.length;
+    }
+  };
+})();
 
 async function renderProjects() {
   const grid = $('projectGrid');
@@ -354,8 +431,10 @@ async function renderProjects() {
   $('projectEmpty').classList.add('hidden');
   if (!currentUser) return;
 
+  const epoch = resultSessionEpoch;
   try {
     const d = await api('/api/projects');
+    if (epoch !== resultSessionEpoch || !currentUser) return;
     const items = d.projects || [];
     if (!items.length) {
       $('projectEmpty').classList.remove('hidden');
@@ -378,6 +457,7 @@ async function renderProjects() {
       `;
 
       card.querySelector('.open-btn').onclick = () => {
+        if (epoch !== resultSessionEpoch || !currentUser) return;
         showView('design');
         $('beforeImg').src = project.before;
         $('afterImg').src = project.after;
@@ -530,6 +610,7 @@ async function signOut() {
       method: 'POST',
       body: JSON.stringify({})
     });
+    clearSessionResults();
     currentUser = null;
     currentUsage = null;
     updateAuthUI();
